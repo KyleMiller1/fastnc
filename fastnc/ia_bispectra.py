@@ -188,11 +188,23 @@ class BispectraIA:
 
         return result
 
-    #def get_F_21(self, k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg2_2, cg2_3):
-    #will not be used, must be rechecked (specifically the alpha,beta,gamma ordering), if uncommented
-    #    k1x, k1y = k1_vec[0]/k1_mag, k1_vec[1]/k1_mag
-    #    k2x, k2y = k2_vec[0]/k2_mag, k2_vec[1]/k2_mag
-    #    return -1 * PL1 * PL2 * (cg2_2 + cg2_3) * (k1x*k1y + k2x*k2y)
+    def get_F_21(self, k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode ='ssg'):
+        k1x, k1y = k1_vec[0]/k1_mag, k1_vec[1]/k1_mag
+        k2x, k2y = k2_vec[0]/k2_mag, k2_vec[1]/k2_mag
+        partial = -1 * PL1 * PL2 * (cg2_2 + cg2_3) * (k1x*k1y + k2x*k2y)    
+        
+        if mode =='ssg':
+            return partial
+    
+        if mode == 'ggs':
+            return 0
+    
+        if mode == 'gsg':
+            return cg1 * partial
+
+        if mode == 'ggg':
+            return cg1**2 * partial
+            
 
     def get_F_22(self, k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ssg'):
 
@@ -233,12 +245,15 @@ class BispectraIA:
             F0_li = self.get_F_00(k_l_vec, k_i_vec, k_l_mag, k_i_mag, k_j_mag, PL_l, PL_i, cg1, cg2_2, cg2_3, mode='gss')
             return F_ij_m + delta_K_0m * F0_jk + delta_K_0m * F0_li
 
+        if m_val == 1:
+            F_ij_m = self.get_F_21(self, k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ssg')
+        
         elif m_val == 2:
             F_ij_m = self.get_F_22(k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
             return F_ij_m
 
         else:
-            raise ValueError("m_val must be 0 or 2 for get_B002")
+            raise ValueError("m_val must be 0, 1, or 2 for get_B002")
 
     def get_delta_K(self, m_val):
         # Kronecker delta definition: zero if m is not zero, and N0^(-1) if m is zero
@@ -254,19 +269,23 @@ class BispectraIA:
 
         if m3_val == 0:
             F_12_m3 = self.get_F_20(k1_vec, k2_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggs')
+        elif m3_val == 1:
+            F_12_m3 = self.get_F_21(k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggs')
         elif m3_val == 2:
             F_12_m3 = self.get_F_22(k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggs')
         else:
-            raise ValueError("m3_val must be 0 or 2 for get_B022")
+            raise ValueError("m3_val must be 0, 1, or 2 for get_B022")
 
         F0_23 = self.get_F_00(k2_vec, k3_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='sgg')
 
         if m2_val == 0:
             F_31_m2 = self.get_F_20(k3_vec, k1_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='gsg')
+        elif m2_val == 1:
+            F_31_m2 = self.get_F_21(k3_vec, k1_vec, k3_mag, k1_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='gsg')
         elif m2_val == 2:
             F_31_m2 = self.get_F_22(k3_vec, k1_vec, k3_mag, k1_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='gsg')
         else:
-            raise ValueError("m2_val must be 0 or 2 for get_B022")
+            raise ValueError("m2_val must be 0, 1, or 2 for get_B022")
 
         term1 = delta_K_0m2 * F_12_m3
         term2 = delta_K_0m2 * delta_K_0m3 * F0_23
@@ -283,24 +302,30 @@ class BispectraIA:
 
         if m3_val == 0:
             F_12_m3 = self.get_F_20(k1_vec, k2_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
+        elif m3_val == 1:
+            F_12_m3 = self.get_F_21(k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         elif m3_val == 2:
             F_12_m3 = self.get_F_22(k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         else:
-            raise ValueError("m3_val must be 0 or 2 for get_B222")
+            raise ValueError("m3_val must be 0, 1, or 2 for get_B222")
 
         if m1_val == 0:
             F_23_m1 = self.get_F_20(k2_vec, k3_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
+        elif m3_val == 1:
+            F_23_m1 = self.get_F_21(k2_vec, k3_vec, k2_mag, k3_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         elif m1_val == 2:
             F_23_m1 = self.get_F_22(k2_vec, k3_vec, k2_mag, k3_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
         else:
-            raise ValueError("m1_val must be 0 or 2 for get_B222")
+            raise ValueError("m1_val must be 0, 1, or 2 for get_B222")
 
         if m2_val == 0:
             F_31_m2 = self.get_F_20(k3_vec, k1_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
+        elif m3_val == 1:
+            F_31_m2 = self.get_F_21(k3_vec, k1_vec, k3_mag, k1_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         elif m2_val == 2:
             F_31_m2 = self.get_F_22(k3_vec, k1_vec, k3_mag, k1_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
         else:
-            raise ValueError("m2_val must be 0 or 2 for get_B222")
+            raise ValueError("m2_val must be 0, 1, or 2 for get_B222")
 
         term1 = delta_K_0m1 * delta_K_0m2 * F_12_m3
         term2 = delta_K_0m2 * delta_K_0m3 * F_23_m1
@@ -351,6 +376,18 @@ class BispectraIA:
         B_002_2 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2)
         B_Edd = 0.5 * (np.sqrt(3 / 2) * B_002_0 - B_002_2)
 
+        # B_delta_delta_B
+        B_002_1 = self.get_B002(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1)
+        B_ddB = -B_002_1
+
+        #B_delta_B_delta (permutation)
+        B_002_1 = self.get_B002(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1)
+        B_dBd = -B_002_1
+        
+        #B_B_delta_delta (permutation)
+        B_002_1 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 1)
+        B_Bdd = -B_002_1
+
         # B_delta_EE (Eq. 13)
         B_022_00 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 0)
         B_022_02_perm1 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 2)
@@ -368,6 +405,26 @@ class BispectraIA:
         B_022_02_perm1 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 2)
         B_022_02_perm2 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2, 0)
         B_EdE = np.sqrt(3 / 2) / 4 * (np.sqrt(3 / 2) * B_022_00 + B_022_02_perm1 + B_022_02_perm2)
+
+        #B_delta_B_B
+        B_dBB = 0
+
+        #B_B_delta_B (permutation)
+        B_BdB = 0
+
+        #B_B_B_delta (permutation)
+        B_BBd = 0
+
+        #B_delta_E_B
+        B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 1)
+        B_dEB = -np.sqrt(3/4) * B_022_01
+
+        #B_delta_B_E (permutation)
+        B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1, 0)
+        B_dBE = -np.sqrt(3/4) * B_022_01
+
+        #B_E_B_delta
+
 
         # B_EEE (Eq. 14)
         B_222_000 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,0)
