@@ -760,9 +760,9 @@ class BispectrumBase:
 
         # compute IA bispectrum components
         if ia_bispec_comps is None:
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = self.ia_bispectrum(K1, K2, K3, Z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta)
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = self.ia_bispectrum(K1, K2, K3, Z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta)
         else:
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = ia_bispec_comps
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = ia_bispec_comps
 
         #print(scomb)
         #if scomb[0] == 1 and scomb[1] == 1 and scomb[2] == 1:
@@ -781,33 +781,82 @@ class BispectrumBase:
         integrand_dEd = kernel_1 * W_2 * kernel_3 * B_dEd * adjust
         integrand_Edd = W_1 * kernel_2 * kernel_3 * B_Edd * adjust
 
+        integrand_ddB = kernel_1 * kernel_2 * W_3 * B_ddB * adjust
+        integrand_dBd = kernel_1 * W_2 * kernel_3 * B_dBd * adjust
+        integrand_Bdd = W_1 * kernel_2 * kernel_3 * B_Bdd * adjust
+                
         integrand_dEE = kernel_1 * W_2 * W_3 * B_dEE * adjust
         integrand_EEd = W_1 * W_2 * kernel_3 * B_EEd * adjust
         integrand_EdE = W_1 * kernel_2 * W_3 * B_EdE * adjust
 
-        integrand_EEE = W_1 * W_2 * W_3 * B_EEE * adjust
+        integrand_dEB = kernel_1 * W_2 * W_3 * B_dEB * adjust
+        integrand_dBE = kernel_1 * W_2 * W_3 * B_dBE * adjust
+        integrand_EBd = W_1 * W_2 * kernel_3 * B_EBd * adjust
+        integrand_BEd = W_1 * W_2 * kernel_3 * B_BEd * adjust
+        integrand_EdB = W_1 * kernel_2 * W_3 * B_EdB * adjust
+        integrand_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
 
+        integrand_EEE = W_1 * W_2 * W_3 * B_EEE * adjust
+                
+        integrand_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
+        integrand_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
+        integrand_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
+        
         # Integrate each component
         if integrand_ddE.shape[1] > 1:
             bk_ddE = np.trapz(integrand_ddE, chi_los, axis=1)
             bk_dEd = np.trapz(integrand_dEd, chi_los, axis=1)
             bk_Edd = np.trapz(integrand_Edd, chi_los, axis=1)
+
+            bk_ddB = np.trapz(integrand_ddB, chi_los, axis=1)
+            bk_dBd = np.trapz(integrand_dBd, chi_los, axis=1)
+            bk_Bdd = np.trapz(integrand_Bdd, chi_los, axis=1)
+            
             bk_dEE = np.trapz(integrand_dEE, chi_los, axis=1)
             bk_EEd = np.trapz(integrand_EEd, chi_los, axis=1)
             bk_EdE = np.trapz(integrand_EdE, chi_los, axis=1)
+
+            bk_dEB = np.trapz(integrand_dEB, chi_los, axis=1)
+            bk_dBE = np.trapz(integrand_dBE, chi_los, axis=1)
+            bk_EBd = np.trapz(integrand_EBd, chi_los, axis=1)
+            bk_BEd = np.trapz(integrand_BEd, chi_los, axis=1)
+            bk_BdE = np.trapz(integrand_BdE, chi_los, axis=1)
+            bk_EdB = np.trapz(integrand_EdB, chi_los, axis=1)
+            
             bk_EEE = np.trapz(integrand_EEE, chi_los, axis=1)
+
+            bk_EEB = np.trapz(integrand_EEB, chi_los, axis=1)
+            bk_EBE = np.trapz(integrand_EBE, chi_los, axis=1)
+            bk_BEE = np.trapz(integrand_BEE, chi_los, axis=1)
 
         else:
             bk_ddE = kernel_1 * kernel_2 * W_3 * B_ddE
             bk_dEd = kernel_1 * W_2 * kernel_3 * B_dEd
             bk_Edd = W_1 * kernel_2 * kernel_3 * B_Edd
+
+            bk_ddB = kernel_1 * kernel_2 * W_3 * B_ddB
+            bk_dBd = kernel_1 * W_2 * kernel_3 * B_dBd
+            bk_Bdd = W_1 * kernel_2 * kernel_3 * B_Bdd
+            
             bk_dEE = kernel_1 * W_2 * W_3 * B_dEE
             bk_EEd = W_1 * W_2 * kernel_3 * B_EEd
             bk_EdE = W_1 * kernel_2 * W_3 * B_EdE
+
+            bk_dEB = kernel_1 * W_2 * W_3 * B_dEB * adjust
+            bk_dBE = kernel_1 * W_2 * W_3 * B_dBE * adjust
+            bk_EBd = W_1 * W_2 * kernel_3 * B_EBd * adjust
+            bk_BEd = W_1 * W_2 * kernel_3 * B_BEd * adjust
+            bk_EdB = W_1 * kernel_2 * W_3 * B_EdB * adjust
+            bk_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
+
             bk_EEE = W_1 * W_2 * W_3 * B_EEE
 
+            bk_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
+            bk_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
+            bk_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
+
         if select_mode == None:
-            bk_total = bk_ddE + bk_dEd + bk_Edd + bk_dEE + bk_EEd + bk_EdE + bk_EEE
+            bk_total = bk_ddE + bk_dEd + bk_Edd + bk_ddB + bk_dBd + bk_Bdd + bk_dEE + bk_EEd + bk_EdE + B_dEB + B_dBE + B_EBd + B_BEd + B_BdE + B_EdB + bk_EEE + bk_EEB + bk_EBE + bk_BEE
 
         elif select_mode == 'ddE':
             bk_total = bk_ddE
@@ -815,14 +864,43 @@ class BispectrumBase:
             bk_total = bk_dEd
         elif select_mode == 'Edd':
             bk_total = bk_Edd
+
+        elif select_mode == 'ddB':
+            bk_total = bk_ddB
+        elif select_mode == 'dBd':
+            bk_total = bk_dBd
+        elif select_mode == 'Bdd':
+            bk_total = bk_Bdd
+            
         elif select_mode == 'dEE':
             bk_total = bk_dEE
         elif select_mode == 'EEd':
             bk_total = bk_EEd
         elif select_mode == 'EdE':
             bk_total = bk_EdE
+
+        elif select_mode == 'dEB':
+            bk_total = bk_dEB
+        elif select_mode == 'dBE':
+            bk_total = bk_dBE
+        elif select_mode == 'EBd':
+            bk_total = bk_EBd
+        elif select_mode == 'BEd':
+            bk_total = bk_BEd
+        elif select_mode == 'BdE':
+            bk_total = bk_BdE
+        elif select_mode == 'EdB':
+            bk_total = bk_EdB
+            
         elif select_mode == 'EEE':
             bk_total = bk_EEE
+
+        elif select_mode == 'EEB':
+            bk_total = bk_EEB
+        elif select_mode == 'EBE':
+            bk_total = bk_EBE
+        elif select_mode == 'BEE':
+            bk_total = bk_BEE
 
         # multiply window 
         if hasattr(self, 'window_function') and window:
@@ -836,7 +914,7 @@ class BispectrumBase:
             bk_total = bk_total[0]
 
         if return_ia_bispec_comps:
-            return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE)
+            return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
         else:
             return bk_total
 
@@ -1245,14 +1323,14 @@ class BispectrumTATT(BispectrumBase):
                     Rb[Rb>=1.0] = 1.0
                 b*= 1.0 + fb * (Rb-1.0)
             normalization = b
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = b*self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=True)
-            B_vals = [B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE]
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b*self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=True)
+            B_vals = [B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE]
             B_vals = [np.nan_to_num(B) for B in B_vals]
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = B_vals
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = B_vals
         else:
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=False)
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=False)
 
-        return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE
+        return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
 
 
 class BispectrumGilMarin(BispectrumBase):
