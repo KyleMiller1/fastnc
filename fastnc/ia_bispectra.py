@@ -246,7 +246,7 @@ class BispectraIA:
             return F_ij_m + delta_K_0m * F0_jk + delta_K_0m * F0_li
 
         if m_val == 1:
-            F_ij_m = self.get_F_21(self, k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ssg')
+            F_ij_m = self.get_F_21(self, k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
         
         elif m_val == 2:
             F_ij_m = self.get_F_22(k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
@@ -376,15 +376,15 @@ class BispectraIA:
         B_002_2 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2)
         B_Edd = 0.5 * (np.sqrt(3 / 2) * B_002_0 - B_002_2)
 
-        # B_delta_delta_B
+        # B_delta_delta_B 
         B_002_1 = self.get_B002(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1)
         B_ddB = -B_002_1
 
-        #B_delta_B_delta (permutation)
+        # B_delta_B_delta (permutation)
         B_002_1 = self.get_B002(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1)
         B_dBd = -B_002_1
         
-        #B_B_delta_delta (permutation)
+        # B_B_delta_delta (permutation)
         B_002_1 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 1)
         B_Bdd = -B_002_1
 
@@ -406,25 +406,34 @@ class BispectraIA:
         B_022_02_perm2 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2, 0)
         B_EdE = np.sqrt(3 / 2) / 4 * (np.sqrt(3 / 2) * B_022_00 + B_022_02_perm1 + B_022_02_perm2)
 
-        #B_delta_B_B
+        # B_delta_BB + permutations
         B_dBB = 0
-
-        #B_B_delta_B (permutation)
         B_BdB = 0
-
-        #B_B_B_delta (permutation)
         B_BBd = 0
 
-        #B_delta_E_B
+        # B_delta_EB
         B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 1)
-        B_dEB = -np.sqrt(3/4) * B_022_01
+        B_dEB = -np.sqrt(3/8) * B_022_01
 
-        #B_delta_B_E (permutation)
+        # B_delta_BE (permutation)
         B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1, 0)
-        B_dBE = -np.sqrt(3/4) * B_022_01
+        B_dBE = -np.sqrt(3/8) * B_022_01
 
-        #B_E_B_delta
+        # B_EB_delta (permutation)
+        B_022_01 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 0, 1)
+        B_EBd = -np.sqrt(3/8) * B_022_01
 
+        # B_BE_delta (permutation)
+        B_022_01 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1, 0)
+        B_BEd = -np.sqrt(3/8) * B_022_01
+
+        # B_B_delta_E (permutation)
+        B_022_01 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 1)
+        B_BdE = -np.sqrt(3/8) * B_022_01
+
+        # B_E_delta_B (permutation)
+        B_022_01 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 1, 0)
+        B_EdB = -np.sqrt(3/8) * B_022_01
 
         # B_EEE (Eq. 14)
         B_222_000 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,0)
@@ -433,11 +442,35 @@ class BispectraIA:
         B_222_002_perm3 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,2,0)
         B_EEE = 3/16 * (np.sqrt(3/2) * B_222_000 - B_222_002_perm1 - B_222_002_perm2 - B_222_002_perm3)
 
+        # B_EEB (Eq. 19)
+        B_222_001 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,1)
+        B_EEB = -3/8 * B_222_001
+
+        # B_EBE 
+        B_222_010 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,1,0)
+        B_EBE = -3/8 * B_222_010
+
+        # B_BEE
+        B_222_100 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1,0,0)
+        B_BEE = -3/8 * B_222_100   
+
+        # B_EBB + permutations
+        B_EBB = 0
+        B_BBE = 0
+        B_BEB = 0
+
+        # B_BBB
+        B_BBB = 0
+        
         tree_level_matter = 2 * (self.F2_tree(k1_mag, k2_mag, k3_mag) * PL1 * PL2 + self.F2_tree(k2_mag, k3_mag, k1_mag) * PL2 * PL3 +
                                  self.F2_tree(k3_mag, k1_mag, k2_mag) * PL3 * PL1)
 
         if renormalize:
             return B_ddE/tree_level_matter, B_dEd/tree_level_matter, B_Edd/tree_level_matter, B_dEE/tree_level_matter, \
-                   B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter
+                   B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, \ 
+                   B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, \
+                   B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, \
+                   B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
+                
         else:
-            return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE
+            return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
