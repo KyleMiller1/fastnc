@@ -246,7 +246,8 @@ class BispectraIA:
             return F_ij_m + delta_K_0m * F0_jk + delta_K_0m * F0_li
 
         if m_val == 1:
-            F_ij_m = self.get_F_21(self, k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
+            F_ij_m = self.get_F_21(k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
+            return F_ij_m
         
         elif m_val == 2:
             F_ij_m = self.get_F_22(k_i_vec, k_j_vec, k_i_mag, k_j_mag, PL_i, PL_j, cg1, cg2_2, cg2_3, mode='ssg')
@@ -467,10 +468,11 @@ class BispectraIA:
 
         if renormalize:
             return B_ddE/tree_level_matter, B_dEd/tree_level_matter, B_Edd/tree_level_matter, B_dEE/tree_level_matter, \
-                    B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, \ 
-                    B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, \
-                    B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, \
-                    B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
+            B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, \
+            B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, \
+            B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, \
+            B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
+            
                 
         else:
             return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
