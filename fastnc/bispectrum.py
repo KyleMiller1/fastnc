@@ -856,7 +856,7 @@ class BispectrumBase:
             bk_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
 
         if select_mode == None:
-            bk_total = bk_ddE + bk_dEd + bk_Edd + bk_ddB + bk_dBd + bk_Bdd + bk_dEE + bk_EEd + bk_EdE + B_dEB + B_dBE + B_EBd + B_BEd + B_BdE + B_EdB + bk_EEE + bk_EEB + bk_EBE + bk_BEE
+            bk_total = bk_ddE + bk_dEd + bk_Edd + bk_ddB + bk_dBd + bk_Bdd + bk_dEE + bk_EEd + bk_EdE + bk_dEB + bk_dBE + bk_EBd + bk_BEd + bk_BdE + bk_EdB + bk_EEE + bk_EEB + bk_EBE + bk_BEE
 
         elif select_mode == 'ddE':
             bk_total = bk_ddE
