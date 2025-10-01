@@ -467,10 +467,10 @@ class BispectraIA:
 
         if renormalize:
             return B_ddE/tree_level_matter, B_dEd/tree_level_matter, B_Edd/tree_level_matter, B_dEE/tree_level_matter, \
-                   B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, \ 
-                   B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, \
-                   B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, \
-                   B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
+                    B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, \ 
+                    B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, \
+                    B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, \
+                    B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
                 
         else:
             return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
