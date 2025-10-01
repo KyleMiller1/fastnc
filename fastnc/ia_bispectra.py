@@ -312,7 +312,7 @@ class BispectraIA:
 
         if m1_val == 0:
             F_23_m1 = self.get_F_20(k2_vec, k3_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
-        elif m3_val == 1:
+        elif m1_val == 1:
             F_23_m1 = self.get_F_21(k2_vec, k3_vec, k2_mag, k3_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         elif m1_val == 2:
             F_23_m1 = self.get_F_22(k2_vec, k3_vec, k2_mag, k3_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
@@ -321,7 +321,7 @@ class BispectraIA:
 
         if m2_val == 0:
             F_31_m2 = self.get_F_20(k3_vec, k1_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
-        elif m3_val == 1:
+        elif m2_val == 1:
             F_31_m2 = self.get_F_21(k3_vec, k1_vec, k3_mag, k1_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ggg')
         elif m2_val == 2:
             F_31_m2 = self.get_F_22(k3_vec, k1_vec, k3_mag, k1_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
