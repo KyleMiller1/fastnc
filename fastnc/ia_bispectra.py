@@ -258,6 +258,7 @@ class BispectraIA:
             return F_12_m + delta_K_0m * F0_23 + delta_K_0m * F0_31
 
         if m_val == 1:
+
             F_12_m = self.get_F_21(k1_vec, k2_vec, k1_mag, k2_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode='ssg')
             return F_12_m
         
@@ -326,7 +327,9 @@ class BispectraIA:
         if m1_val == 0:
             F_23_m1 = self.get_F_20(k2_vec, k3_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
         elif m1_val == 1:
+
             F_23_m1 = self.get_F_21(k2_vec, k3_vec, k2_mag, k3_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
+
         elif m1_val == 2:
             F_23_m1 = self.get_F_22(k2_vec, k3_vec, k2_mag, k3_mag, PL2, PL3, cg1, cg2_2, cg2_3, mode='ggg')
         else:
@@ -335,7 +338,9 @@ class BispectraIA:
         if m2_val == 0:
             F_31_m2 = self.get_F_20(k3_vec, k1_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
         elif m2_val == 1:
+
             F_31_m2 = self.get_F_21(k3_vec, k1_vec, k3_mag, k1_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
+
         elif m2_val == 2:
             F_31_m2 = self.get_F_22(k3_vec, k1_vec, k3_mag, k1_mag, PL3, PL1, cg1, cg2_2, cg2_3, mode='ggg')
         else:
@@ -484,7 +489,9 @@ class BispectraIA:
                                  self.F2_tree(k3_mag, k1_mag, k2_mag) * PL3 * PL1)
 
         if renormalize:
+
             return B_ddE/tree_level_matter, B_dEd/tree_level_matter, B_Edd/tree_level_matter, B_dEE/tree_level_matter, B_EEd/tree_level_matter, B_EdE/tree_level_matter, B_EEE/tree_level_matter, B_ddB/tree_level_matter, B_dBd/tree_level_matter, B_Bdd/tree_level_matter, B_dEB/tree_level_matter, B_dBE/tree_level_matter, B_EBd/tree_level_matter, B_BEd/tree_level_matter, B_BdE/tree_level_matter, B_EdB/tree_level_matter, B_EEB/tree_level_matter, B_EBE/tree_level_matter, B_BEE/tree_level_matter
+
                 
         else:
             return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
