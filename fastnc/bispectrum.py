@@ -71,6 +71,7 @@ class BispectrumBase:
     config_multipole = dict(nellbin=100, npsibin=80, nmubin=50, nmubin_log=30, Lmax=None, Lmax_diag=None, \
         multipole_type='legendre', method='gauss-legendre')
     config_IA        = dict(NLA=False)
+    config_EB_modes  = dict(modes_used = 'E_and_B')
 
     def __init__(self, config=None, **kwargs):
         # set the support range of ell1, ell2
@@ -83,6 +84,8 @@ class BispectrumBase:
         self.set_multipole_grid(config, **kwargs)
         # init intrinsic alignment model
         update_config(self.config_IA, config, **kwargs)
+        update_config(self.config_EB_modes, config, **kwargs)
+        self.modes_used = self.config_EB_modes['modes_used']
         
     # Binning
     def set_losint(self, config=None, **kwargs):
@@ -856,7 +859,12 @@ class BispectrumBase:
             bk_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
 
         if select_mode == None:
-            bk_total = bk_ddE + bk_dEd + bk_Edd + bk_ddB + bk_dBd + bk_Bdd + bk_dEE + bk_EEd + bk_EdE + B_dEB + B_dBE + B_EBd + B_BEd + B_BdE + B_EdB + bk_EEE + bk_EEB + bk_EBE + bk_BEE
+            if self.modes_used == 'E_and_B':
+                bk_total = bk_ddE + bk_dEd + bk_Edd + bk_ddB + bk_dBd + bk_Bdd + bk_dEE + bk_EEd + bk_EdE + bk_dEB + bk_dBE + bk_EBd + bk_BEd + bk_BdE + bk_EdB + bk_EEE + bk_EEB + bk_EBE + bk_BEE
+            elif self.modes_used == 'E':
+                bk_total = bk_ddE + bk_dEd + bk_Edd + bk_dEE + bk_EdE + bk_EEd + bk_EEE
+            elif self.modes_used == 'B':
+                bk_total = bk_ddB + bk_dBd + bk_Bdd + bk_dEB + bk_dBE + bk_EBd + bk_BEd + bk_BdE + bk_EdB + bk_EEB + bk_EBE + bk_BEE
 
         elif select_mode == 'ddE':
             bk_total = bk_ddE
@@ -914,7 +922,12 @@ class BispectrumBase:
             bk_total = bk_total[0]
 
         if return_ia_bispec_comps:
-            return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
+            if self.modes_used == 'E_and_B':
+                return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
+            elif self.modes_used == 'E':
+                return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE)
+            elif self.modes_used == 'B':
+                return bk_total, (B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
         else:
             return bk_total
 
@@ -1323,15 +1336,19 @@ class BispectrumTATT(BispectrumBase):
                     Rb[Rb>=1.0] = 1.0
                 b*= 1.0 + fb * (Rb-1.0)
             normalization = b
+
+
             B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b*self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=True)
+
             B_vals = [B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE]
             B_vals = [np.nan_to_num(B) for B in B_vals]
             B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = B_vals
+            
+                
         else:
             B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = self.ia_bispectra_calculator.get_ia_bispectra(k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=False)
 
         return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
-
 
 class BispectrumGilMarin(BispectrumBase):
     """
