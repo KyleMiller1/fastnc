@@ -136,7 +136,7 @@ class BispectraIA:
         sin_alpha = np.sqrt(1 - cos_alpha ** 2)
 
         # We can choose k1y to be positive without loss of generality
-        k1_vec_flat = np.array([k1_mag_flat * cos_alpha, k1_mag_flat * sin_alpha])
+        k1_vec_flat = np.array([-k1_mag_flat * cos_alpha, -k1_mag_flat * sin_alpha])
         k2_vec_flat = - k3_vec_flat - k1_vec_flat
 
         k1_vec = k1_vec_flat.reshape((2,) + original_shape)
