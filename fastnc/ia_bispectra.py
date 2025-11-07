@@ -136,7 +136,7 @@ class BispectraIA:
         sin_alpha = np.sqrt(1 - cos_alpha ** 2)
 
         # We can choose k1y to be positive without loss of generality
-        k1_vec_flat = np.array([k1_mag_flat * cos_alpha, k1_mag_flat * sin_alpha])
+        k1_vec_flat = np.array([-k1_mag_flat * cos_alpha, -k1_mag_flat * sin_alpha])
         k2_vec_flat = - k3_vec_flat - k1_vec_flat
 
         k1_vec = k1_vec_flat.reshape((2,) + original_shape)
@@ -368,7 +368,7 @@ class BispectraIA:
         cg2_3 = 0.5 * (3 * C1delta - C2)
 
         # Construct k-vectors
-        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
+        #k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
 
         # Get linear power spectra
         if do_non_linear:
@@ -380,46 +380,56 @@ class BispectraIA:
             PL2 = self.get_interpolated_pklin(k2_mag, z)
             PL3 = self.get_interpolated_pklin(k3_mag, z)
 
+
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_delta_delta_E (Eq. 12)
         B_002_0 = self.get_B002(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0)
         B_002_2 = self.get_B002(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 2)
         B_ddE = 0.5 * (np.sqrt(3/2) * B_002_0 - B_002_2)
 
-        # B_delta_E_delta (permutation)
+        k2_vec, k3_vec, k1_vec = self._construct_k_vectors(k2_mag, k3_mag, k1_mag)
+        # B_E_delta_delta (permutation)
         B_002_0 = self.get_B002(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 0)
         B_002_2 = self.get_B002(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 2)
         B_Edd = 0.5 * (np.sqrt(3/2) * B_002_0 - B_002_2)
 
-        # B_E_delta_delta (permutation)
+        k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
+        # B_delta_E_delta (permutation)
         B_002_0 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0)
         B_002_2 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2)
         B_dEd = 0.5 * (np.sqrt(3 / 2) * B_002_0 - B_002_2)
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_delta_delta_B 
         B_002_1 = self.get_B002(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1)
         B_ddB = -B_002_1
 
-        # B_delta_B_delta (permutation)
+        k2_vec, k3_vec, k1_vec = self._construct_k_vectors(k2_mag, k3_mag, k1_mag)
+        # B_B_delta_delta (permutation)
         B_002_1 = self.get_B002(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1)
         B_Bdd = -B_002_1
-        
-        # B_B_delta_delta (permutation)
+
+        k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
+        # B_delta_B_delta (permutation)
         B_002_1 = self.get_B002(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 1)
         B_dBd = -B_002_1
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_delta_EE (Eq. 13)
         B_022_00 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 0)
         B_022_02_perm1 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 2)
         B_022_02_perm2 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 2, 0)
         B_dEE = np.sqrt(3/2)/4 * (np.sqrt(3/2) * B_022_00 + B_022_02_perm1 + B_022_02_perm2)
 
-        # B_EE_delta (permutation)
+        k2_vec, k3_vec, k1_vec = self._construct_k_vectors(k2_mag, k3_mag, k1_mag)
+        # B_E_delta_E (permutation)
         B_022_00 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 0, 0)
         B_022_02_perm1 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 2)
         B_022_02_perm2 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2, 0)
         B_EdE = np.sqrt(3 / 2) / 4 * (np.sqrt(3 / 2) * B_022_00 + B_022_02_perm1 + B_022_02_perm2)
 
-        # B_E_delta_E (permutation)
+        k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
+        # B_EE_delta (permutation)
         B_022_00 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 0)
         B_022_02_perm1 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 2)
         B_022_02_perm2 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 2, 0)
@@ -430,34 +440,41 @@ class BispectraIA:
         B_BdB = 0
         B_BBd = 0
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_delta_EB
         B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0, 1)
         B_dEB = -np.sqrt(3/8) * B_022_01
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_delta_BE (permutation)
         B_022_01 = self.get_B022(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1, 0)
         B_dBE = -np.sqrt(3/8) * B_022_01
         # B_022_01 = self.get_B022(k1_vec, k3_vec, k2_vec, k1_mag, k3_mag, k2_mag, PL1, PL3, PL1, cg1, cg2_2, cg2_3, 0, 1)
         # B_dBE = -np.sqrt(3/8) * B_022_01
 
-        # B_EB_delta (permutation)
+        k2_vec, k3_vec, k1_vec = self._construct_k_vectors(k2_mag, k3_mag, k1_mag)
+        # B_B_delta_E (permutation)
         B_022_01 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 0, 1)
         B_BdE = -np.sqrt(3/8) * B_022_01
 
-        # B_BE_delta (permutation)
+        k2_vec, k3_vec, k1_vec = self._construct_k_vectors(k2_mag, k3_mag, k1_mag)
+        # B_E_delta_B (permutation)
         # B_022_01 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1, 0)
         # B_BEd = -np.sqrt(3/8) * B_022_01
         B_022_01 = self.get_B022(k2_vec, k3_vec, k1_vec, k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 1, 0)
         B_EdB = -np.sqrt(3/8) * B_022_01
 
-        # B_B_delta_E (permutation)
+        k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
+        # B_EB_delta (permutation)
         B_022_01 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 1)
         B_EBd = -np.sqrt(3/8) * B_022_01
 
-        # B_E_delta_B (permutation)
+        k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
+        # B_BE_delta (permutation)
         B_022_01 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 1, 0)
         B_BEd = -np.sqrt(3/8) * B_022_01
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_EEE (Eq. 14)
         B_222_000 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,0)
         B_222_002_perm1 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,2)
@@ -465,14 +482,17 @@ class BispectraIA:
         B_222_002_perm3 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,2,0)
         B_EEE = 3/16 * (np.sqrt(3/2) * B_222_000 - B_222_002_perm1 - B_222_002_perm2 - B_222_002_perm3)
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_EEB (Eq. 19)
         B_222_001 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,0,1)
         B_EEB = -3/8 * B_222_001
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_EBE 
         B_222_010 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0,1,0)
         B_EBE = -3/8 * B_222_010
 
+        k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         # B_BEE
         B_222_100 = self.get_B222(k1_vec, k2_vec, k3_vec, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1,0,0)
         B_BEE = -3/8 * B_222_100   
