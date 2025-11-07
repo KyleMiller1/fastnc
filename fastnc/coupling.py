@@ -15,7 +15,10 @@ import json
 # fastnc modules
 from .utils import sincos2angbar, npload_lock, npsavez_lock
 from .integration import aint
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+except:
+    print("Cannot import mpi4py")
 
 def get_cache_dir():
     # first we look for the environmental variable

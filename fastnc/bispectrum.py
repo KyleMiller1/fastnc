@@ -67,7 +67,7 @@ class BispectrumBase:
     # default configs
     config_scale     = dict(ell1min=None, ell1max=None, epmu=1e-7)
     config_losint    = dict(zmin=1e-4, zmid=1e-1, nzbin_log=15, nzbin_lin=40, zbin=None)
-    config_interp    = dict(nrbin=35, nubin=35, nvbin=25, method='linear', use_interp=True)
+    config_interp    = dict(nrbin=35, nubin=35, nvbin=25, method='linear', use_interp=True, extv=False)
     config_multipole = dict(nellbin=100, npsibin=80, nmubin=50, nmubin_log=30, Lmax=None, Lmax_diag=None, \
         multipole_type='legendre', method='gauss-legendre')
     config_IA        = dict(NLA=False)
@@ -162,7 +162,12 @@ class BispectrumBase:
         self.rmax = self.ellmax*max(2**-0.5, np.cos(self.psimin))
         self.umin = min(2**0.5*self.config_scale['epmu']**0.5, np.tan(self.psimin))
         self.umax = 1.0
-        self.vmin = 0.0
+        if self.config_interp['extv']:
+            # This will be needed when we want to distinguish triangles
+            # that have opposite signs of v.
+            self.vmin = -1.0
+        else:
+            self.vmin = 0.0
         self.vmax = 1.0
 
     def set_interpolation_grid(self, config=None, **kwargs):
@@ -991,7 +996,10 @@ class BispectrumBase:
         """
         scomb = self.parse_sample_combination(scomb)
         ip = self.bk_interp[scomb]
-        r, u, v = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=False)
+        if self.config_interp['extv']:
+            r, u, v = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=True)
+        else:
+            r, u, v = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=False)
         x = edge_correction(np.log(r), ip.grid[0].min(), ip.grid[0].max())
         y = edge_correction(np.log(u), ip.grid[1].min(), ip.grid[1].max())
         z = edge_correction(v, ip.grid[2].min(), ip.grid[2].max())
