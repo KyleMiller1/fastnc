@@ -243,7 +243,7 @@ class FastNaturalComponents:
             L = np.arange(self.Lmax+1)
         # Get bispectrum multipole
         if bL is None:
-            bL = self.bispectrum.kappa_bispectrum_multipole(
+            bL = self.bispectrum.bispectrum2d_multipole(
                 L, self.ELL_FFT, self.PSI_FFT, **args)
         if self.config_multipole['use_GLM_table']:
             GLM = self.GLM.from_table(L, M)
@@ -259,7 +259,7 @@ class FastNaturalComponents:
         if L_diag is None:
             L_diag = np.arange(self.Lmax, self.Lmax_diag+1)
         if bL_diag is None:
-            bL_diag = self.bispectrum.kappa_bispectrum_multipole_diag(
+            bL_diag = self.bispectrum.bispectrum2d_multipole_diag(
                 L_diag, self.ell1_fft, **args)
         GLM_diag = self.GLM(L_diag, M, np.array([np.pi/4]))[0,:]
         HM_diag = np.sum(((-1)**L_diag*GLM_diag.T*bL_diag.T).T, axis=0)
@@ -333,12 +333,12 @@ class FastNaturalComponents:
         M = np.arange(Mmax+1)
         L = np.arange(Lmin, Lmax+1)
         # First we compute the kernel HM for all M
-        bL = self.bispectrum.kappa_bispectrum_multipole(
+        bL = self.bispectrum.bispectrum2d_multipole(
             L, self.ELL_FFT, self.PSI_FFT, **args)
         timer('multipole')
         if self.Lmax_diag > self.Lmax:
             L_diag = np.arange(self.Lmax, self.Lmax_diag+1)
-            bL_diag = self.bispectrum.kappa_bispectrum_multipole_diag(
+            bL_diag = self.bispectrum.bispectrum2d_multipole_diag(
                 L_diag, self.ell1_fft, **args)
             timer('multipole diag')
         else:

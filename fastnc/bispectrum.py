@@ -17,10 +17,9 @@ from scipy.special import eval_legendre
 # fastnc modules
 from . import trigutils
 from .halofit import Halofit
-from .multipole import MultipoleLegendre, MultipoleFourier
+from .multipole import MultipoleLegendre, MultipoleFourier, MultipoleSine
 from .utils import loglinear, edge_correction, update_config, get_config_key
 from .ia_bispectra import BispectraIA
-
 
 wPlanck18 = wCDM(H0=Planck18.H0, Om0=Planck18.Om0, Ode0=Planck18.Ode0, w0=-1.0, meta=Planck18.meta, name="wPlanck18")
 
@@ -65,15 +64,17 @@ class BispectrumBase:
     >>> b.kappa_bispectrum_multipole(L, ell, psi, scomb=scomb)
     """
     # default configs
-    config_scale     = dict(ell1min=None, ell1max=None, epmu=1e-7)
-    config_losint    = dict(zmin=1e-4, zmid=1e-1, nzbin_log=15, nzbin_lin=40, zbin=None)
-    config_interp    = dict(nrbin=35, nubin=35, nvbin=25, method='linear', use_interp=True, extv=False)
-    config_multipole = dict(nellbin=100, npsibin=80, nmubin=50, nmubin_log=30, Lmax=None, Lmax_diag=None, \
+    config_scale_defaults     = dict(ell1min=None, ell1max=None, epmu=1e-7)
+    config_losint_defaults    = dict(zmin=1e-4, zmid=1e-1, nzbin_log=15, nzbin_lin=40, zbin=None)
+    config_interp_defaults    = dict(nrbin=35, nubin=35, nvbin=25, method='linear', use_interp=True, ylog=True)
+    config_multipole_defaults = dict(nellbin=100, npsibin=80, nmubin=50, nmubin_log=30, Lmax=None, Lmax_diag=None, \
         multipole_type='legendre', method='gauss-legendre')
-    config_IA        = dict(NLA=False)
-    config_EB_modes  = dict(modes_used = 'E_and_B')
+    config_IA_defaults        = dict(NLA=False)
+    config_parity_defaults    = dict(parity='even')
 
     def __init__(self, config=None, **kwargs):
+        # set defaults that will be overwritten
+        self.set_defaults()
         # set the support range of ell1, ell2
         self.set_scale_range(config, **kwargs)
         # init line-of-sight integration config
@@ -84,9 +85,18 @@ class BispectrumBase:
         self.set_multipole_grid(config, **kwargs)
         # init intrinsic alignment model
         update_config(self.config_IA, config, **kwargs)
-        update_config(self.config_EB_modes, config, **kwargs)
-        self.modes_used = self.config_EB_modes['modes_used']
-        
+        # parity
+        update_config(self.config_parity, config, **kwargs)
+
+    def set_defaults(self):
+        # copy the defaults
+        self.config_scale      = self.config_scale_defaults.copy()
+        self.config_losint     = self.config_losint_defaults.copy()
+        self.config_interp     = self.config_interp_defaults.copy()
+        self.config_multipole  = self.config_multipole_defaults.copy()
+        self.config_IA         = self.config_IA_defaults.copy()
+        self.config_parity     = self.config_parity_defaults.copy()
+
     # Binning
     def set_losint(self, config=None, **kwargs):
         """
@@ -162,12 +172,7 @@ class BispectrumBase:
         self.rmax = self.ellmax*max(2**-0.5, np.cos(self.psimin))
         self.umin = min(2**0.5*self.config_scale['epmu']**0.5, np.tan(self.psimin))
         self.umax = 1.0
-        if self.config_interp['extv']:
-            # This will be needed when we want to distinguish triangles
-            # that have opposite signs of v.
-            self.vmin = -1.0
-        else:
-            self.vmin = 0.0
+        self.vmin = 0.0
         self.vmax = 1.0
 
     def set_interpolation_grid(self, config=None, **kwargs):
@@ -208,6 +213,8 @@ class BispectrumBase:
         self.ELL3_interp = ELL3
         # method for interpolation
         self.method_interp = self.config_interp['method']
+        # whether take log of bispectrum when interpolate
+        self.ylog_interp   = self.config_interp['ylog']
         # place holder for interpolation function
         self.bk_interp = dict()
 
@@ -531,23 +538,15 @@ class BispectrumBase:
                 return tuple(scomb)
         
     # Spectra methods
-    # matter power spectrum (to be implemented in subclasses)
-    def matter_bispectrum(self, k1, k2, k3, z):
+    def bispectrum3d(self, k1, k2, k3, z):
         """
-        Compute matter bispectrum.
+        Compute 3D bispectrum B(k1,k2,k3,z).
 
         Parameters:
             k1 (array) : k1 array in h/Mpc unit
             k2 (array) : k2 array in h/Mpc unit
             k3 (array) : k3 array in h/Mpc unit
             z (array)  : redshift array
-        """
-        raise NotImplementedError
-
-    def ia_bispectrum(self, k1, k2, k3, z, z_piv, a1, alpha1, a2, alpha2, bias_ta):
-        """
-        Compute intrinsic alignment bispectrum components.
-        This method should be implemented in subclasses.
         """
         raise NotImplementedError
 
@@ -570,7 +569,6 @@ class BispectrumBase:
             else:
                 z = loglinear(self.zmin_losint, self.zmid_losint, self.zmax_losint, \
                     self.nzbin_log_losint, self.nzbin_lin_losint)
-                #z = np.array([0.005,0.01,0.02,0.03,0.04,0.05,0.07,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.45,1.5])
             
             chi = self.z2chi(z)
             weight = np.ones_like(chi) # Ensure weight is an array
@@ -589,7 +587,7 @@ class BispectrumBase:
         return z, chi, weight
 
     # kappa bispectrum interface
-    def kappa_bispectrum(self, ell1, ell2, ell3, scomb=None, \
+    def bispectrum2d(self, ell1, ell2, ell3, scomb=None, \
             method='direct', **args):
         """
         Compute kappa bispectrum.
@@ -606,17 +604,17 @@ class BispectrumBase:
         scomb = self.parse_sample_combination(scomb)
 
         if method == 'direct':
-            return self.kappa_bispectrum_direct(ell1, ell2, ell3, scomb, **args)
+            return self.bispectrum2d_direct(ell1, ell2, ell3, scomb, **args)
         elif method == 'interp':
-            return self.kappa_bispectrum_interp(ell1, ell2, ell3, scomb)
+            return self.bispectrum2d_interp(ell1, ell2, ell3, scomb)
         elif method == 'resum':
-            return self.kappa_bispectrum_resum(ell1, ell2, ell3, scomb, **args)
+            return self.bispectrum2d_resum(ell1, ell2, ell3, scomb, **args)
         else:
             raise ValueError("method must be 'direct', 'interp', or 'resum'")
         
     # direct evaluation of kappa bispectrum from matter bispectrum
-    def kappa_bispectrum_direct(self, ell1, ell2, ell3, scomb=None, \
-            window=True, bm=None, return_bm=False, z=None, l_shift=0.0, **args):
+    def bispectrum2d_direct(self, ell1, ell2, ell3, scomb=None, \
+            window=True, b3d=None, return_b3d=False, z=None, l_shift=0.0, **args):
         """
         Compute kappa bispectrum by direct line-of-sight integration.
 
@@ -656,23 +654,24 @@ class BispectrumBase:
         ell3 = ell3.ravel()
 
         # line-of-sight integration kernel
+        # I am doing this product here instead of inside get_los_kernel 
+        # so that it may be compatible with the TATT kernel
         z, chi, kernel = self.get_los_kernel(scomb)
-        kernel *= 1.0 / chi * (1 + z) ** 3 #I am doing this product here instead of inside get_los_kernel so that it may be compatible with the TATT kernel
+        kernel *= 1.0 / chi * (1 + z) ** 3 
         
         # create grids
         ELL1, Z = np.meshgrid(ell1, z, indexing='ij')
         ELL2, Z = np.meshgrid(ell2, z, indexing='ij')
         ELL3, Z = np.meshgrid(ell3, z, indexing='ij')
         CHI = self.z2chi(Z)
-        # K1, K2, K3 = ELL1/CHI, ELL2/CHI, ELL3/CHI
         K1, K2, K3 = (ELL1+l_shift)/CHI, (ELL2+l_shift)/CHI, (ELL3+l_shift)/CHI
 
-        # compute matter bispectrum
-        if (bm is None) or not isinstance(scomb, tuple):
-            bm = self.matter_bispectrum(K1, K2, K3, Z, **args)
+        # compute 3D bispectrum
+        if (b3d is None) or not isinstance(scomb, tuple):
+            b3d = self.bispectrum3d(K1, K2, K3, Z, **args)
 
         # integrand
-        i = kernel * bm
+        i = kernel * b3d
 
         # integrate
         if i.shape[1] > 1:
@@ -691,13 +690,401 @@ class BispectrumBase:
         if isscalar:
             bk = bk[0]
 
-        if return_bm:
-            return bk, bm
+        if return_b3d:
+            return bk, b3d
         else:
             return bk
 
-    def kappa_bispectrum_IA_direct(self, ell1, ell2, ell3, scomb=None, \
-            window=True, ia_bispec_comps=None, return_ia_bispec_comps=False, select_mode=None, z=None, l_shift=0.0):
+    # interpolation
+    def interpolate(self, scombs=None, **args):
+        """
+        Interpolate kappa bispectrum. 
+        The interpolation is done in (r,u,v)-space, which is defined in M. Jarvis+2003 
+        (https://arxiv.org/abs/astro-ph/0307393). See also treecorr homepage
+        (https://rmjarvis.github.io/TreeCorr/_build/html/correlation3.html).
+
+        Parameters:
+            scombs (list): list of sample combinations
+            args (dict): arguments for matter_bispectrum
+        """
+        # If sample_combinations is not given, 
+        # we get all possible combinations.
+        if scombs is None:
+            scombs = self.get_all_sample_combinations()
+        # Prepare for the interpolation
+        b3d = None
+        grid = (np.log(self.r_interp), np.log(self.u_interp), self.v_interp)
+
+        for sc in scombs:
+            sc = self.parse_sample_combination(sc)
+            bk, b3d = self.bispectrum2d_direct(
+                self.ELL1_interp,
+                self.ELL2_interp,
+                self.ELL3_interp,
+                scomb=sc,
+                window=False,
+                b3d=b3d,
+                return_b3d=True,
+                **args)
+            if self.ylog_interp:
+                bk = np.log(np.abs(bk))
+            self.bk_interp[sc] = rgi(grid, bk, method=self.method_interp)
+
+    def bispectrum2d_interp(self, ell1, ell2, ell3, scomb=None):
+        """
+        Compute kappa bispectrum by interpolation.
+
+        Parameters:
+            ell1 (array): ell1 array
+            ell2 (array): ell2 array
+            ell3 (array): ell3 array
+        """
+        scomb = self.parse_sample_combination(scomb)
+        ip = self.bk_interp[scomb]
+        r, u, vs = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=True)
+        v, sign1 = np.abs(vs), np.sign(vs)
+        x = edge_correction(np.log(r), ip.grid[0].min(), ip.grid[0].max())
+        y = edge_correction(np.log(u), ip.grid[1].min(), ip.grid[1].max())
+        z = edge_correction(v, ip.grid[2].min(), ip.grid[2].max())
+
+        bk = ip((x,y,z))
+        if self.ylog_interp:
+            bk = np.exp(bk)
+
+        if self.config_parity['parity'] == 'odd':
+            ells  = trigutils.ruv_to_x1x2x3(r,u,v)
+            vs    = trigutils.x1x2x3_to_ruv(*ells, signed=True)[2]
+            sign2 = np.sign(vs)
+            bk   *= sign1/sign2
+
+        # multiply window 
+        if hasattr(self, 'window_function'):
+            bk *= self.window_function(ell1, ell2, ell3)
+        return bk
+
+    # multipole decomposition
+    def decompose(self, scombs=None, method_bispec='interp', **args):
+        """
+        Compute multipole decomposition of kappa bispectrum.
+
+        Parameters:
+            scombs (list)       : list of sample combinations
+            method_bispec (str) : method for kappa_bispectrum
+            args (dict)         : arguments for kappa_bispectrum
+        """
+        # If sample_combinations is not given, 
+        # we get all possible combinations.
+        if scombs is None:
+            scombs = self.get_all_sample_combinations()
+        # Compute multipole
+        for sc in scombs:
+            sc = self.parse_sample_combination(sc)
+            b = self.bispectrum2d(
+                    self.ELL1_multipole, 
+                    self.ELL2_multipole, 
+                    self.ELL3_multipole, 
+                    sc, 
+                    method=method_bispec, 
+                    **args)
+            # Compute multipoles
+            L = np.arange(self.Lmax_multipole+1)
+            bL = self.multipole_decomposer.decompose(b, L, axis=2)
+            self.bL_multipole[sc] = bL
+
+        # You may want to calculate higher multipole especially for 
+        # diagonal elements, where ell1= ell2, corresponds to the 
+        # squeezed limit bispectrum.
+        if self.Lmax_multipole_diag <= self.Lmax_multipole:
+            return 0
+        print('Decomposing for diag.')
+        for sc in scombs:
+            sc = self.parse_sample_combination(sc)
+            b = self.bispectrum2d(
+                    self.ELL1_multipole_diag, 
+                    self.ELL1_multipole_diag, 
+                    self.ELL1_multipole_diag, 
+                    sc, 
+                    method=method_bispec, 
+                    **args)
+            # Compute multipoles
+            L = np.arange(self.Lmax_multipole, self.Lmax_multipole_diag+1)
+            bL = self.multipole_decomposer.decompose(b, L, axis=1)
+            self.bL_multipole_diag[sc] = bL
+
+    def bispectrum2d_multipole(self, L, ell, psi, scomb=None):
+        """
+        Compute multipole of kappa bispectrum.
+
+        Parameters:
+            L (array)     : multipole
+            ell (array)   : ell array
+            psi (array)   : psi array
+            scomb (tuple) : sample combination
+        """
+        # parse sample_combination
+        scomb = self.parse_sample_combination(scomb)
+        # cast to array
+        isscalar = np.isscalar(L)
+        if isscalar:
+            L = np.array([L])
+
+        # compute multipole
+        out = np.zeros((L.size,) + ell.shape)
+        grid = (np.log(self.ell_multipole), np.log(self.psi_multipole))
+        for i, _L in enumerate(L):
+            # interpolate
+            z = self.bL_multipole[scomb][_L, :, :]
+            ip= rgi(grid, z, bounds_error=True)
+            # convert psi to pi/2-psi if psi > pi/4
+            psi = psi.copy()
+            sel = np.pi/4 < psi
+            psi[sel] = np.pi/2 - psi[sel]
+
+            x = edge_correction(np.log(ell), ip.grid[0].min(), ip.grid[0].max())
+            y = edge_correction(np.log(psi), ip.grid[1].min(), ip.grid[1].max())
+            out[i] = ip((x, y))
+
+        if isscalar:
+            out = out[0]
+            
+        return out
+
+    def bispectrum2d_multipole_diag(self, L, ell1, scomb=None):
+        """
+        Compute multipole of kappa bispectrum.
+
+        Parameters:
+            L (array)     : multipole
+            ell1 (array)   : ell1 array
+            scomb (tuple) : sample combination
+        """
+        # parse sample_combination
+        scomb = self.parse_sample_combination(scomb)
+        # cast to array
+        isscalar = np.isscalar(L)
+        if isscalar:
+            L = np.array([L])
+
+        # compute multipole
+        out = np.zeros((L.size,) + ell1.shape)
+        for i, _L in enumerate(L):
+            # interpolate
+            z = self.bL_multipole_diag[scomb][_L-self.Lmax_multipole, :]
+            ip= ius(np.log(self.ell_multipole/2**0.5), z)
+            out[i] = ip(np.log(ell1))
+
+        if isscalar:
+            out = out[0]
+            
+        return out
+
+    def bispectrum2d_resum(self, ell1, ell2, ell3, scomb=None, Lmax=None):
+        """
+        Compute kappa bispectrum by resummation of multipoles.
+
+        Parameters:
+            L (array)     : multipole
+            ell (array)   : ell array
+            psi (array)   : psi array
+            scomb (tuple) : sample combination
+        """
+        scomb = self.parse_sample_combination(scomb)
+        ell, psi, mu = trigutils.x1x2x3_to_xpsimu(ell1, ell2, ell3)
+        L = np.arange(Lmax or self.Lmax_multipole)
+        bL = self.bispectrum2d_multipole(L, ell, psi, scomb=scomb)
+        # pL = np.array([eval_legendre(_L, mu) for _L in L])
+        _ = np.linspace(-1, 1, 100)
+        pL = np.array([ius(_, eval_legendre(_L, _))(mu) for _L in L])
+        out = np.sum(bL*pL, axis=0)
+        return out
+
+
+class BispectrumHalofit(BispectrumBase):
+    """
+    Bispectrum computed from halofit.
+    """
+    __doc__ += BispectrumBase.__doc__
+    # default configs
+    config_scale_defaults  = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
+    
+    def __init__(self, config=None, **kwargs):
+        self.halofit = Halofit()
+        super().__init__(config, **kwargs)
+        self.baryon_params = {'fb':0.0, 'suppress_only':False}
+
+    def set_cosmology(self, cosmo, ns=None, sigma8=None):
+        """
+        Sets cosmology. 
+
+        Parameters:
+            cosmo (astropy.cosmology): cosmology
+            ns (float)               : spectral index of linear power spectrum
+            sigma8 (float)           : sigma8 of linear power spectrum (at z=0.0)
+
+        Note:
+            Note that the values of ns and sigma8 are set by two ways:
+            1. Assigning ns and sigma8 as arguments of this method.
+            2. Assigning ns and sigma8 to cosmo.meta.
+        """
+        super().set_cosmology(cosmo)
+        # parameters for halofit
+        dcosmo={'Om0': cosmo.Om0, 
+                'Ode0': cosmo.Ode0,
+                'ns': ns or cosmo.meta.get('n'),
+                'sigma8': sigma8 or cosmo.meta.get('sigma8'), 
+                'w0': cosmo.w0, 
+                'wa': 0.0,
+                'fnu0': 0.0} 
+        self.halofit.set_cosmology(dcosmo)
+
+    def set_pklin(self, k, pklin):
+        """
+        Set linear power spectrum.
+
+        Parameters:
+            k (array)    : wavenumber array
+            pklin (array): linear power spectrum
+        """
+        self.halofit.set_pklin(k, pklin)
+        self.has_changed = True
+
+    def set_lgr(self, z, lgr):
+        """
+        Set linear growth rate.
+
+        Parameters:
+            z (float)  : redshift
+            lgr (float): linear growth rate
+        """
+        self.z2lgr = ius(z, lgr, ext=1)
+        self.halofit.set_lgr(z, lgr)
+        self.has_changed = True
+
+    def set_baryon_param(self, params):
+        """
+        Set parameter(s) of baryon
+
+        keywords:
+            fb: suppression factor relative to TNG-300
+        """
+        if 'fb' not in params:
+            raise ValueError('fb must be given as a parameter (float)')
+        self.baryon_params.update(params)
+
+    def bispectrum3d(self, k1, k2, k3, z, all_physical=True, which=['Bh1', 'Bh3']):
+        b = self.halofit.get_bihalofit(k1, k2, k3, z, all_physical=all_physical, which=which)
+        fb = self.baryon_params['fb']
+        if fb != 0:
+            Rb= self.halofit.get_Rb_bihalofit(k1, k2, k3, z)
+            if self.baryon_params['suppress_only']:
+                Rb[Rb>=1.0] = 1.0
+            b*= 1.0 + fb * (Rb-1.0)
+        return b
+
+class BispectrumTATT(BispectrumBase):
+    """
+    Bispectrum computed from intrinsic alignment (TATT model).
+    """
+    __doc__ += BispectrumBase.__doc__
+    # default configs
+    config_scale_defaults     = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
+    config_EB_modes  = dict(modes_used = 'E')
+    
+    def __init__(self, config=None, **kwargs):
+        self.ia_bispectra_calculator = BispectraIA() #Initializes computation of TATT bispectra
+        self.halofit = Halofit() #Initializes computation of Bihalofit for renormalization
+        super().__init__(config, **kwargs)
+        self.IA_params = {}
+        self.baryon_params = {'fb': 0.0, 'suppress_only': False}
+        update_config(self.config_EB_modes, config, **kwargs)
+        self.modes_used = self.config_EB_modes['modes_used']
+
+    def set_cosmology(self, cosmo, ns=None, sigma8=None):
+        """
+        Sets cosmology. 
+
+        Parameters:
+            cosmo (astropy.cosmology): cosmology
+            ns (float)               : spectral index of linear power spectrum
+            sigma8 (float)           : sigma8 of linear power spectrum (at z=0.0)
+        """
+        super().set_cosmology(cosmo)
+        # parameters for IABispectra
+        dcosmo={'Om0': cosmo.Om0, 
+                'Ode0': cosmo.Ode0,
+                'ns': ns or cosmo.meta.get('n'),
+                'sigma8': sigma8 or cosmo.meta.get('sigma8'), 
+                'w0': cosmo.w0, 
+                'wa': 0.0,
+                'fnu0': 0.0} 
+        self.ia_bispectra_calculator.set_cosmology(dcosmo)
+        self.halofit.set_cosmology(dcosmo)
+
+    def set_pklin(self, k, pklin):
+
+        """
+        Set linear power spectrum.
+
+        Parameters:
+            k (array)    : wavenumber array
+            pklin (array): linear power spectrum
+
+        """
+        self.ia_bispectra_calculator.set_pklin(k, pklin)
+        self.halofit.set_pklin(k, pklin)
+        self.has_changed = True
+        
+    def set_pknl(self, k, pknl):
+
+        """
+        Set non-linear power spectrum.
+
+        Parameters:
+            k (array)    : wavenumber array
+            pknl (array): non-linear power spectrum
+
+        """
+        self.ia_bispectra_calculator.set_pknl(k, pknl)
+        self.has_changed = True
+        
+    def set_lgr(self, z, lgr):
+        """
+        Set linear growth rate.#
+
+        Parameters:
+            z (float)  : redshift
+            lgr (float): linear growth rate
+        """
+        self.z2lgr = ius(z, lgr, ext=1)
+        self.ia_bispectra_calculator.set_lgr(z, lgr)
+        self.halofit.set_lgr(z, lgr)
+        self.ia_bispectra_calculator.z2lgr = self.z2lgr
+        self.has_changed = True
+
+    def set_IA_param(self, params):
+        """
+        Set parameters for Intrinsic Alignment.
+
+        Parameters:
+            params (dict) : parameters for intrinsic alignment effect (a1, alpha1, a2, alpha2, bias_ta)
+        """
+        if 'a1' not in params or 'alphaIA' not in params or 'a2' not in params or 'alphaIA_2' not in params or 'bias_ta' not in params:
+            raise ValueError('a1, alphaIA, a2, alphaIA_2, and bias_ta must be given as parameters.')
+        self.IA_params.update(params)
+
+    def set_baryon_param(self, params):
+        """
+        Set parameter(s) of baryon for bispectrum renormalization
+
+        keywords:
+            fb: suppression factor relative to TNG-300
+        """
+        if 'fb' not in params:
+            raise ValueError('fb must be given as a parameter (float)')
+        self.baryon_params.update(params)
+
+    def bispectrum2d_direct(self, ell1, ell2, ell3, scomb=None, \
+            window=True, b3d=None, return_b3d=False, z=None, l_shift=0.0, **args):
         """
         Compute kappa bispectrum from intrinsic alignment bispectrum components by direct line-of-sight integration.
 
@@ -706,9 +1093,9 @@ class BispectrumBase:
             ell2 (array)  : ell2 array
             ell3 (array)  : ell3 array
             scomb (tuple) : sample combination
-            ia_bispec_comps (tuple) : IA bispectrum components (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE)
-            return_ia_bispec_comps (bool) : return IA bispectrum components if True
-            args (dict)               : arguments for ia_bispectrum
+            b3d (tuple)   : IA bispectrum components (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE)
+            return_b3d (bool) : return IA bispectrum components if True
+            args (dict)   : arguments for ia_bispectrum
         """
 
         #set IA params
@@ -718,6 +1105,8 @@ class BispectrumBase:
         A2 = self.IA_params['a2']
         alphaIA_2 = self.IA_params['alphaIA_2']
         bias_ta = self.IA_params['bias_ta']
+
+        select_mode = args.get('select_mode', None)
 
         # parse sample_combination
         scomb = self.parse_sample_combination(scomb)
@@ -767,10 +1156,10 @@ class BispectrumBase:
         K1, K2, K3 = (ELL1+l_shift)/CHI, (ELL2+l_shift)/CHI, (ELL3+l_shift)/CHI
 
         # compute IA bispectrum components
-        if ia_bispec_comps is None:
+        if b3d is None:
             B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = self.ia_bispectrum(K1, K2, K3, Z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta)
         else:
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = ia_bispec_comps
+            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b3d
 
         #print(scomb)
         #if scomb[0] == 1 and scomb[1] == 1 and scomb[2] == 1:
@@ -805,7 +1194,7 @@ class BispectrumBase:
         integrand_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
 
         integrand_EEE = W_1 * W_2 * W_3 * B_EEE * adjust
-                
+        
         integrand_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
         integrand_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
         integrand_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
@@ -927,7 +1316,7 @@ class BispectrumBase:
         if isscalar:
             bk_total = bk_total[0]
 
-        if return_ia_bispec_comps:
+        if return_b3d:
             if self.modes_used == 'E_and_B':
                 return bk_total, (B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
             elif self.modes_used == 'E':
@@ -936,402 +1325,6 @@ class BispectrumBase:
                 return bk_total, (B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE)
         else:
             return bk_total
-
-    # interpolation
-    def interpolate(self, scombs=None, select_tatt_component=None, **args):
-        """
-        Interpolate kappa bispectrum. 
-        The interpolation is done in (r,u,v)-space, which is defined in M. Jarvis+2003 
-        (https://arxiv.org/abs/astro-ph/0307393). See also treecorr homepage
-        (https://rmjarvis.github.io/TreeCorr/_build/html/correlation3.html).
-
-        Parameters:
-            scombs (list): list of sample combinations
-            args (dict): arguments for matter_bispectrum
-        """
-        # If sample_combinations is not given, 
-        # we get all possible combinations.
-        if scombs is None:
-            scombs = self.get_all_sample_combinations()
-        # Prepare for the interpolation
-        bm = None
-        grid = (np.log(self.r_interp), np.log(self.u_interp), self.v_interp)
-
-        if hasattr(self, 'ia_bispectra_calculator'):
-            for sc in scombs:
-                sc = self.parse_sample_combination(sc)
-                bk = self.kappa_bispectrum_IA_direct(
-                    self.ELL1_interp,
-                    self.ELL2_interp,
-                    self.ELL3_interp,
-                    scomb=sc,
-                    window=False,
-                    select_mode=select_tatt_component,
-                    **args)
-                #not doing log here
-                self.bk_interp[sc] = rgi(grid, bk, method=self.method_interp)
-
-        else:
-            for sc in scombs:
-                sc = self.parse_sample_combination(sc)
-                bk, bm = self.kappa_bispectrum_direct(
-                    self.ELL1_interp,
-                    self.ELL2_interp,
-                    self.ELL3_interp,
-                    scomb=sc,
-                    window=False,
-                    bm=bm,
-                    return_bm=True,
-                    **args)
-                self.bk_interp[sc] = rgi(grid, np.log(bk), method=self.method_interp)
-
-    def kappa_bispectrum_interp(self, ell1, ell2, ell3, scomb=None):
-        """
-        Compute kappa bispectrum by interpolation.
-
-        Parameters:
-            ell1 (array): ell1 array
-            ell2 (array): ell2 array
-            ell3 (array): ell3 array
-        """
-        scomb = self.parse_sample_combination(scomb)
-        ip = self.bk_interp[scomb]
-        if self.config_interp['extv']:
-            r, u, v = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=True)
-        else:
-            r, u, v = trigutils.x1x2x3_to_ruv(ell1, ell2, ell3, signed=False)
-        x = edge_correction(np.log(r), ip.grid[0].min(), ip.grid[0].max())
-        y = edge_correction(np.log(u), ip.grid[1].min(), ip.grid[1].max())
-        z = edge_correction(v, ip.grid[2].min(), ip.grid[2].max())
-
-        if hasattr(self, 'ia_bispectra_calculator'):
-            bk = ip((x,y,z))
-        else:
-            bk = np.exp(ip((x,y,z)))
-
-        # multiply window 
-        if hasattr(self, 'window_function'):
-            bk *= self.window_function(ell1, ell2, ell3)
-        return bk
-
-    # multipole decomposition
-    def decompose(self, scombs=None, method_bispec='interp', **args):
-        """
-        Compute multipole decomposition of kappa bispectrum.
-
-        Parameters:
-            scombs (list)       : list of sample combinations
-            method_bispec (str) : method for kappa_bispectrum
-            args (dict)         : arguments for kappa_bispectrum
-        """
-        # If sample_combinations is not given, 
-        # we get all possible combinations.
-        if scombs is None:
-            scombs = self.get_all_sample_combinations()
-        # Compute multipole
-        for sc in scombs:
-            sc = self.parse_sample_combination(sc)
-            b = self.kappa_bispectrum(
-                    self.ELL1_multipole, 
-                    self.ELL2_multipole, 
-                    self.ELL3_multipole, 
-                    sc, 
-                    method=method_bispec, 
-                    **args)
-            # Compute multipoles
-            L = np.arange(self.Lmax_multipole+1)
-            bL = self.multipole_decomposer.decompose(b, L, axis=2)
-            self.bL_multipole[sc] = bL
-
-        # You may want to calculate higher multipole especially for 
-        # diagonal elements, where ell1= ell2, corresponds to the 
-        # squeezed limit bispectrum.
-        if self.Lmax_multipole_diag <= self.Lmax_multipole:
-            return 0
-        print('Decomposing for diag.')
-        for sc in scombs:
-            sc = self.parse_sample_combination(sc)
-            b = self.kappa_bispectrum(
-                    self.ELL1_multipole_diag, 
-                    self.ELL1_multipole_diag, 
-                    self.ELL1_multipole_diag, 
-                    sc, 
-                    method=method_bispec, 
-                    **args)
-            # Compute multipoles
-            L = np.arange(self.Lmax_multipole, self.Lmax_multipole_diag+1)
-            bL = self.multipole_decomposer.decompose(b, L, axis=1)
-            self.bL_multipole_diag[sc] = bL
-
-
-    def kappa_bispectrum_multipole(self, L, ell, psi, scomb=None):
-        """
-        Compute multipole of kappa bispectrum.
-
-        Parameters:
-            L (array)     : multipole
-            ell (array)   : ell array
-            psi (array)   : psi array
-            scomb (tuple) : sample combination
-        """
-        # parse sample_combination
-        scomb = self.parse_sample_combination(scomb)
-        # cast to array
-        isscalar = np.isscalar(L)
-        if isscalar:
-            L = np.array([L])
-
-        # compute multipole
-        out = np.zeros((L.size,) + ell.shape)
-        grid = (np.log(self.ell_multipole), np.log(self.psi_multipole))
-        for i, _L in enumerate(L):
-            # interpolate
-            z = self.bL_multipole[scomb][_L, :, :]
-            ip= rgi(grid, z, bounds_error=True)
-            # convert psi to pi/2-psi if psi > pi/4
-            psi = psi.copy()
-            sel = np.pi/4 < psi
-            psi[sel] = np.pi/2 - psi[sel]
-
-            x = edge_correction(np.log(ell), ip.grid[0].min(), ip.grid[0].max())
-            y = edge_correction(np.log(psi), ip.grid[1].min(), ip.grid[1].max())
-            out[i] = ip((x, y))
-
-        if isscalar:
-            out = out[0]
-            
-        return out
-
-    def kappa_bispectrum_multipole_diag(self, L, ell1, scomb=None):
-        """
-        Compute multipole of kappa bispectrum.
-
-        Parameters:
-            L (array)     : multipole
-            ell1 (array)   : ell1 array
-            scomb (tuple) : sample combination
-        """
-        # parse sample_combination
-        scomb = self.parse_sample_combination(scomb)
-        # cast to array
-        isscalar = np.isscalar(L)
-        if isscalar:
-            L = np.array([L])
-
-        # compute multipole
-        out = np.zeros((L.size,) + ell1.shape)
-        for i, _L in enumerate(L):
-            # interpolate
-            z = self.bL_multipole_diag[scomb][_L-self.Lmax_multipole, :]
-            ip= ius(np.log(self.ell_multipole/2**0.5), z)
-            out[i] = ip(np.log(ell1))
-
-        if isscalar:
-            out = out[0]
-            
-        return out
-
-    def kappa_bispectrum_resum(self, ell1, ell2, ell3, scomb=None, Lmax=None):
-        """
-        Compute kappa bispectrum by resummation of multipoles.
-
-        Parameters:
-            L (array)     : multipole
-            ell (array)   : ell array
-            psi (array)   : psi array
-            scomb (tuple) : sample combination
-        """
-        scomb = self.parse_sample_combination(scomb)
-        ell, psi, mu = trigutils.x1x2x3_to_xpsimu(ell1, ell2, ell3)
-        L = np.arange(Lmax or self.Lmax_multipole)
-        bL = self.kappa_bispectrum_multipole(L, ell, psi, scomb=scomb)
-        # pL = np.array([eval_legendre(_L, mu) for _L in L])
-        _ = np.linspace(-1, 1, 100)
-        pL = np.array([ius(_, eval_legendre(_L, _))(mu) for _L in L])
-        out = np.sum(bL*pL, axis=0)
-        return out
-
-
-class BispectrumHalofit(BispectrumBase):
-    """
-    Bispectrum computed from halofit.
-    """
-    __doc__ += BispectrumBase.__doc__
-    # default configs
-    config_scale     = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
-    
-    def __init__(self, config=None, **kwargs):
-        self.halofit = Halofit()
-        super().__init__(config, **kwargs)
-        self.baryon_params = {'fb':0.0, 'suppress_only':False}
-
-    def set_cosmology(self, cosmo, ns=None, sigma8=None):
-        """
-        Sets cosmology. 
-
-        Parameters:
-            cosmo (astropy.cosmology): cosmology
-            ns (float)               : spectral index of linear power spectrum
-            sigma8 (float)           : sigma8 of linear power spectrum (at z=0.0)
-
-        Note:
-            Note that the values of ns and sigma8 are set by two ways:
-            1. Assigning ns and sigma8 as arguments of this method.
-            2. Assigning ns and sigma8 to cosmo.meta.
-        """
-        super().set_cosmology(cosmo)
-        # parameters for halofit
-        dcosmo={'Om0': cosmo.Om0, 
-                'Ode0': cosmo.Ode0,
-                'ns': ns or cosmo.meta.get('n'),
-                'sigma8': sigma8 or cosmo.meta.get('sigma8'), 
-                'w0': cosmo.w0, 
-                'wa': 0.0,
-                'fnu0': 0.0} 
-        self.halofit.set_cosmology(dcosmo)
-
-    def set_pklin(self, k, pklin):
-        """
-        Set linear power spectrum.
-
-        Parameters:
-            k (array)    : wavenumber array
-            pklin (array): linear power spectrum
-        """
-        self.halofit.set_pklin(k, pklin)
-        self.has_changed = True
-
-    def set_lgr(self, z, lgr):
-        """
-        Set linear growth rate.
-
-        Parameters:
-            z (float)  : redshift
-            lgr (float): linear growth rate
-        """
-        self.z2lgr = ius(z, lgr, ext=1)
-        self.halofit.set_lgr(z, lgr)
-        self.has_changed = True
-
-    def set_baryon_param(self, params):
-        """
-        Set parameter(s) of baryon
-
-        keywords:
-            fb: suppression factor relative to TNG-300
-        """
-        if 'fb' not in params:
-            raise ValueError('fb must be given as a parameter (float)')
-        self.baryon_params.update(params)
-
-    def matter_bispectrum(self, k1, k2, k3, z, all_physical=True, which=['Bh1', 'Bh3']):
-        b = self.halofit.get_bihalofit(k1, k2, k3, z, all_physical=all_physical, which=which)
-        fb = self.baryon_params['fb']
-        if fb != 0:
-            Rb= self.halofit.get_Rb_bihalofit(k1, k2, k3, z)
-            if self.baryon_params['suppress_only']:
-                Rb[Rb>=1.0] = 1.0
-            b*= 1.0 + fb * (Rb-1.0)
-        return b
-
-class BispectrumTATT(BispectrumBase):
-    """
-    Bispectrum computed from intrinsic alignment (TATT model).
-    """
-    __doc__ += BispectrumBase.__doc__
-    # default configs
-    config_scale     = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
-    
-    def __init__(self, config=None, **kwargs):
-        self.ia_bispectra_calculator = BispectraIA() #Initializes computation of TATT bispectra
-        self.halofit = Halofit() #Initializes computation of Bihalofit for renormalization
-        super().__init__(config, **kwargs)
-        self.IA_params = {}
-        self.baryon_params = {'fb': 0.0, 'suppress_only': False}
-
-    def set_cosmology(self, cosmo, ns=None, sigma8=None):
-        """
-        Sets cosmology. 
-
-        Parameters:
-            cosmo (astropy.cosmology): cosmology
-            ns (float)               : spectral index of linear power spectrum
-            sigma8 (float)           : sigma8 of linear power spectrum (at z=0.0)
-        """
-        super().set_cosmology(cosmo)
-        # parameters for IABispectra
-        dcosmo={'Om0': cosmo.Om0, 
-                'Ode0': cosmo.Ode0,
-                'ns': ns or cosmo.meta.get('n'),
-                'sigma8': sigma8 or cosmo.meta.get('sigma8'), 
-                'w0': cosmo.w0, 
-                'wa': 0.0,
-                'fnu0': 0.0} 
-        self.ia_bispectra_calculator.set_cosmology(dcosmo)
-        self.halofit.set_cosmology(dcosmo)
-
-    def set_pklin(self, k, pklin):
-
-        """
-        Set linear power spectrum.
-
-        Parameters:
-            k (array)    : wavenumber array
-            pklin (array): linear power spectrum
-
-        """
-        self.ia_bispectra_calculator.set_pklin(k, pklin)
-        self.halofit.set_pklin(k, pklin)
-        self.has_changed = True
-        
-    def set_pknl(self, k, pknl):
-
-        """
-        Set non-linear power spectrum.
-
-        Parameters:
-            k (array)    : wavenumber array
-            pknl (array): non-linear power spectrum
-
-        """
-        self.ia_bispectra_calculator.set_pknl(k, pknl)
-        self.has_changed = True
-        
-    def set_lgr(self, z, lgr):
-        """
-        Set linear growth rate.#
-
-        Parameters:
-            z (float)  : redshift
-            lgr (float): linear growth rate
-        """
-        self.z2lgr = ius(z, lgr, ext=1)
-        self.ia_bispectra_calculator.set_lgr(z, lgr)
-        self.halofit.set_lgr(z, lgr)
-        self.ia_bispectra_calculator.z2lgr = self.z2lgr
-        self.has_changed = True
-
-    def set_IA_param(self, params):
-        """
-        Set parameters for Intrinsic Alignment.
-
-        Parameters:
-            params (dict) : parameters for intrinsic alignment effect (a1, alpha1, a2, alpha2, bias_ta)
-        """
-        if 'a1' not in params or 'alphaIA' not in params or 'a2' not in params or 'alphaIA_2' not in params or 'bias_ta' not in params:
-            raise ValueError('a1, alphaIA, a2, alphaIA_2, and bias_ta must be given as parameters.')
-        self.IA_params.update(params)
-
-    def set_baryon_param(self, params):
-        """
-        Set parameter(s) of baryon for bispectrum renormalization
-
-        keywords:
-            fb: suppression factor relative to TNG-300
-        """
-        if 'fb' not in params:
-            raise ValueError('fb must be given as a parameter (float)')
-        self.baryon_params.update(params)
 
     def ia_bispectrum(self, k1, k2, k3, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=False):
 
@@ -1359,6 +1352,7 @@ class BispectrumTATT(BispectrumBase):
 
         return B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE
 
+
 class BispectrumGilMarin(BispectrumBase):
     """
     Bispectrum computed from Gil-Marin.
@@ -1367,7 +1361,7 @@ class BispectrumGilMarin(BispectrumBase):
     """
     __doc__ += BispectrumBase.__doc__
     # default configs
-    config_scale     = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
+    config_scale_defaults     = dict(ell1min=1e-1, ell1max=1e5, epmu=1e-7)
     
     def __init__(self, config=None, **kwargs):
         self.halofit = Halofit()
@@ -1498,7 +1492,7 @@ class BispectrumGilMarin(BispectrumBase):
         f2 = 5 / 7 + 2 * dot ** 2 / (7 * k1 ** 2 * k2 ** 2) - dot * (1 / k1 ** 2 + 1 / k2 ** 2) / 2
         return f2
 
-    def matter_bispectrum(self, k1, k2, k3, z, **kwargs):
+    def bispectrum3d(self, k1, k2, k3, z, **kwargs):
         print("Note: Gilmarin ignores kwargs.")
 
         PNL1 = self.halofit.get_pkhalofit(k1[:,0], z[0,:]).T
@@ -1531,7 +1525,7 @@ class BispectrumNFW1Halo(BispectrumBase):
     """
     __doc__ += BispectrumBase.__doc__
     # default configs
-    config_scale     = dict(ell1min=1e-2, ell1max=1e5, epmu=1e-7)
+    config_scale_defaults     = dict(ell1min=1e-2, ell1max=1e5, epmu=1e-7)
     
     def __init__(self, config=None, **kwargs):
         super().__init__(config, **kwargs)
@@ -1546,7 +1540,7 @@ class BispectrumNFW1Halo(BispectrumBase):
         si, ci = sici(y)
         return -np.cos(y)*ci + 0.5*np.sin(y)*(np.pi-2*si)
 
-    def kappa_bispectrum_direct(self, ell1, ell2, ell3, **args):
+    def bispectrum3d_direct(self, ell1, ell2, ell3, **args):
         rs = np.deg2rad(self.rs/60.0) # in rad
         bl = 1
         for i, _ell in enumerate([ell1, ell2, ell3]):
