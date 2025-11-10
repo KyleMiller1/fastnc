@@ -253,6 +253,7 @@ class BispectrumBase:
         # save grid
         self.ell_multipole = ell
         self.psi_multipole = psi
+        self.mu_multipole  = mu
         self.ELL1_multipole = ELL1
         self.ELL2_multipole = ELL2
         self.ELL3_multipole = ELL3
@@ -1186,7 +1187,7 @@ class BispectrumTATT(BispectrumBase):
             bk_EEd = _integrate(W_1 * W_2 * kernel_3 * B_EEd * adjust)
             bk_EdE = _integrate(W_1 * kernel_2 * W_3 * B_EdE * adjust)
             
-            bk_EEE = integrate(W_1 * W_2 * W_3 * B_EEE * adjust)
+            bk_EEE = _integrate(W_1 * W_2 * W_3 * B_EEE * adjust)
 
         elif self.modes_used == 'B' or self.modes_used == 'E_and_B':
             bk_ddB = _integrate(kernel_1 * kernel_2 * W_3 * B_ddB * adjust)

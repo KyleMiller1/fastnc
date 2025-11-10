@@ -4,6 +4,8 @@ from scipy.integrate import simpson
 from scipy.optimize import bisect
 from scipy.special import gamma, gammaincc
 
+from .trigutils import is_cyclic_permutation
+
 # Reusing window functions from halofit.py
 def window_tophat(x):
     return 3.0/x**3 * (np.sin(x) - x*np.cos(x))
@@ -137,11 +139,14 @@ class BispectraIA:
         return (5./7.)+0.5*costheta12*(k1/k2+k2/k1)+(2./7.)*costheta12*costheta12
 
     def _construct_k_vectors(self, k1_mag, k2_mag, k3_mag):
+        # swap k1 and k2 to have k1 >= k2
+        # sel = k1_mag >= k2_mag
+        # k1_mag = 
         
         original_shape = k1_mag.shape
         k1_mag_flat = k1_mag.ravel()
         k2_mag_flat = k2_mag.ravel()
-        k3_mag_flat = k3_mag.ravel()
+        k3_mag_flat = k3_mag.ravel()        
 
         k3_vec_flat = np.array([k3_mag_flat, np.zeros_like(k3_mag_flat)])
         cos_alpha = (k3_mag_flat ** 2 + k1_mag_flat ** 2 - k2_mag_flat ** 2) / (2 * k3_mag_flat * k1_mag_flat)
@@ -151,7 +156,7 @@ class BispectraIA:
         # We can choose k1y to be positive without loss of generality
         k1_vec_flat = np.array([-k1_mag_flat * cos_alpha, -k1_mag_flat * sin_alpha])
         k2_vec_flat = - k3_vec_flat - k1_vec_flat
-
+        
         k1_vec = k1_vec_flat.reshape((2,) + original_shape)
         k2_vec = k2_vec_flat.reshape((2,) + original_shape)
         k3_vec = k3_vec_flat.reshape((2,) + original_shape)
@@ -208,15 +213,26 @@ class BispectraIA:
 
         return result
 
+    # def clockwise_sign(self, x1, x2, x3):
+    #     # check the (d1 > d2 > d3) triangle is clockwise or not
+    #     idx = np.argsort([x1, x2, x3], axis=0).T
+    #     clk = [is_cyclic_permutation(_idx) for _idx in idx]
+    #     sign = np.ones_like(clk, dtype=int)
+    #     sign[np.logical_not(clk)] = -1
+    #     return sign
+
     def get_F_21(self, k1_mag, k2_mag, k3_mag, PL1, PL2, cg1, cg2_2, cg2_3, mode ='ssg'):
 
         k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
         
         k1x, k1y = k1_vec[0]/k1_mag, k1_vec[1]/k1_mag
         k2x, k2y = k2_vec[0]/k2_mag, k2_vec[1]/k2_mag
+
+        # sign = self.clockwise_sign(k1_mag, k2_mag, k3_mag)
  
         partial = -1 * PL1 * PL2 * (cg2_2 + cg2_3) * (k1x*k1y + k2x*k2y) 
-
+        # partial = -1 * PL1 * PL2 * (cg2_2 + cg2_3) * np.abs(k1x*k1y + k2x*k2y) * sign
+        
         #print('F_21 called, mode is', mode)
         
         if mode =='ssg':

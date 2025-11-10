@@ -268,10 +268,17 @@ class MultipoleSine(MultipoleBase):
             # L == 0
             w0[L==0,:] = 0
             w1[L==0,:] = 0
+            # L == 1
+            _x = self.x[None,:]
+            w0[L==1,:] = _x
+            w1[L==1,:] = _x**2/2
             # L != 0
-            _L, _x = L[L!=0,None], self.x[None,:]
-            w0[L!=0,:] = -np.cos(_L*_x)/_L
-            w1[L!=0,:] = -_x*np.cos(_L*_x)/_L + np.sin(_L*_x)/_L**2
+            _L, _x = L[L>1,None], self.x[None,:]
+            ac = np.arccos(_x)
+            # w0[L!=0,:] = -np.cos(_L*_x)/_L
+            # w1[L!=0,:] = -_x*np.cos(_L*_x)/_L + np.sin(_L*_x)/_L**2
+            w0[L>1,:] = np.cos(_L*ac) / _L
+            w1[L>1,:] = (_L*_x*np.cos(_L*ac) + (1-_x**2)**0.5*np.sin(_L*_x)) / (_L**2-1)
             # diff
             w0 = np.diff(w0, axis=1)
             w1 = np.diff(w1, axis=1)
