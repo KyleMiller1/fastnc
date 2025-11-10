@@ -12,7 +12,7 @@ import numpy as np
 from .twobessel import two_Bessel
 from . import trigutils
 from .utils import sincos2angbar, update_config, get_config_key
-from .coupling import MCF222LegendreFourier, MCF222FourierFourier
+from .coupling import MCF222LegendreFourier, MCF222FourierFourier, MCF222SineFourier
 
 class FastNaturalComponents:
     r"""
@@ -76,7 +76,7 @@ class FastNaturalComponents:
     config_bin       = {'t1':None, 'phi':None, 'mu':[0,1,2,3], 'dlnt':None}
     config_fftlog    = {'nu1':1.01, 'nu2':1.01, 'N_pad':0, 'xy':1}
     config_fftgrid   = {'auto':True, 'ell1min':None, 'ell1max':None, 'nfft':150}
-        
+    
     def __init__(self, config=None, verbose=True, **kwargs):
         # general setup
         self.verbose = verbose
@@ -118,6 +118,8 @@ class FastNaturalComponents:
             self.GLM = MCF222LegendreFourier(self.Lmax_diag, self.Mmax, verbose=self.verbose, cache=self.config_multipole['cache'])
         elif self.multipole_type == 'fourier':
             self.GLM = MCF222FourierFourier(self.Lmax_diag, self.Mmax, verbose=self.verbose, cache=self.config_multipole['cache'])
+        elif self.multipole_type == 'sine':
+            self.GLM = MCF222SineFourier(self.Lmax_diag, self.Mmax, verbose=self.verbose, cache=self.config_multipole['cache'])
         else:
             raise ValueError('Error: multipole_type={} is not expected'.format(self.multipole_type))
 

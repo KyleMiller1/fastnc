@@ -43,6 +43,19 @@ class BispectraIA:
         self.cosmo = cosmo
         self.has_changed = True
 
+    # def set_IA_param(self, ia_params):
+    #     """
+    #     dict of z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta
+    #     """
+    #     assert "z_piv"     in ia_params
+    #     assert "A1"        in ia_params
+    #     assert "alphaIA"   in ia_params
+    #     assert "A2"        in ia_params
+    #     assert "alphaIA_2" in ia_params
+    #     assert "bias_ta"   in ia_params
+    #     self.ia_params = ia_params
+    #     self.has_changed = True
+
     def update(self):
         if self.has_changed:
             self._normalize_pklin()
@@ -249,6 +262,13 @@ class BispectraIA:
 
         return result
 
+    def get_delta_K(self, m_val):
+        # Kronecker delta definition: zero if m is not zero, and N0^(-1) if m is zero
+        if m_val == 0.0:
+            return np.sqrt(2/3)
+        else:
+            return 0.0
+    
     def get_B000(self, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3):
         #This is not used, here for completeness
         F0_12 = self.get_F_00(k1_mag, k2_mag, k3_mag, PL1, PL2, 0, 0, 0, mode='sss')
@@ -278,13 +298,6 @@ class BispectraIA:
 
         else:
             raise ValueError("m_val must be 0, 1, or 2 for get_B002")
-
-    def get_delta_K(self, m_val):
-        # Kronecker delta definition: zero if m is not zero, and N0^(-1) if m is zero
-        if m_val == 0.0:
-            return np.sqrt(2/3)
-        else:
-            return 0.0
 
     def get_B022(self, k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, m2_val, m3_val):
 
@@ -361,6 +374,40 @@ class BispectraIA:
         term3 = delta_K_0m3 * delta_K_0m1 * F_31_m2
         return term1 + term2 + term3
 
+    # def get_cg(self, z):
+    #     # Get params
+    #     z_piv     = self.ia_params['z_piv']
+    #     A1        = self.ia_params['A1']
+    #     alphaIA   = self.ia_params['alphaIA']
+    #     A2        = self.ia_params['A2']
+    #     alphaIA_2 = self.ia_params['alphaIA_2']
+    #     bias_ta   = self.ia_params['bias_ta']
+
+    #     #Get C1, C1delta and C2 params
+    #     c1rhocrit = 0.0134
+    #     C1 = -A1 * ((1+z)/(1+z_piv))**alphaIA * c1rhocrit * self.cosmo['Om0'] / self.z2lgr(z)
+    #     C1delta = bias_ta*C1
+    #     C2 = A2 * ((1+z)/(1+z_piv))**alphaIA_2 * 5 * c1rhocrit * self.cosmo['Om0'] / self.z2lgr(z)**2
+
+    #     # normalization to match the A1 of TATT, according to Eq. 66 of Bakx et al (1) (2025) and Eq. 30 of Bakx et. al. (2) (2025)
+    #     C1 *= 2
+
+    #     #Get cg1, cg2_2 and cg2_3 params
+    #     cg1 = C1
+    #     cg2_2 = C2
+    #     cg2_3 = 0.5 * (3 * C1delta - C2)
+
+    #     return cg1, cg2_2, cg2_3
+
+    def get_B_dEE(self, k1_mag, k2_mag, k3_mag, z, PL1=None, PL2=None, PL3=None, cg1=None, cg2_2=None, cg2_3=None):
+            
+        
+        # B_delta_delta_E (Eq. 12)
+        B_002_0 = self.get_B002(k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0)
+        B_002_2 = self.get_B002(k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 2)
+        B_ddE = 0.5 * (np.sqrt(3/2) * B_002_0 - B_002_2)        
+
+    # Get terms of TATT IA bispectrum
     def get_ia_bispectra(self, k1_mag, k2_mag, k3_mag, z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta, renormalize=True, do_non_linear=True):
 
         #Get C1, C1delta and C2 params
@@ -377,9 +424,6 @@ class BispectraIA:
         cg2_2 = C2
         cg2_3 = 0.5 * (3 * C1delta - C2)
 
-        # Construct k-vectors
-        #k1_vec, k2_vec, k3_vec = self._construct_k_vectors(k1_mag, k2_mag, k3_mag)
-
         # Get linear power spectra
         if do_non_linear:
             PL1 = self.get_interpolated_pknl(k1_mag, z)
@@ -389,7 +433,6 @@ class BispectraIA:
             PL1 = self.get_interpolated_pklin(k1_mag, z)
             PL2 = self.get_interpolated_pklin(k2_mag, z)
             PL3 = self.get_interpolated_pklin(k3_mag, z)
-
 
         # B_delta_delta_E (Eq. 12)
         B_002_0 = self.get_B002(k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 0)
@@ -448,10 +491,6 @@ class BispectraIA:
         # B_delta_BE (permutation)
         B_022_01 = self.get_B022(k1_mag, k2_mag, k3_mag, PL1, PL2, PL3, cg1, cg2_2, cg2_3, 1, 0)
         B_dBE = -np.sqrt(3/8) * B_022_01
-        # k3_vec, k1_vec, k2_vec = self._construct_k_vectors(k3_mag, k1_mag, k2_mag)
-        # # B_delta_BE (permutation)
-        # B_022_01 = self.get_B022(k3_vec, k1_vec, k2_vec, k3_mag, k1_mag, k2_mag, PL3, PL1, PL2, cg1, cg2_2, cg2_3, 0, 1)
-        # B_EBd = -np.sqrt(3/8) * B_022_01
 
         # B_B_delta_E (permutation)
         B_022_01 = self.get_B022(k2_mag, k3_mag, k1_mag, PL2, PL3, PL1, cg1, cg2_2, cg2_3, 0, 1)

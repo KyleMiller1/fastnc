@@ -755,11 +755,12 @@ class BispectrumBase:
             ells  = trigutils.ruv_to_x1x2x3(r,u,v)
             vs    = trigutils.x1x2x3_to_ruv(*ells, signed=True)[2]
             sign2 = np.sign(vs)
-            bk   *= sign1/sign2
+            bk   *= sign1 / np.where(sign2 == 0, 1, sign2)
 
         # multiply window 
         if hasattr(self, 'window_function'):
             bk *= self.window_function(ell1, ell2, ell3)
+
         return bk
 
     # multipole decomposition
@@ -1159,98 +1160,102 @@ class BispectrumTATT(BispectrumBase):
         if b3d is None:
             B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = self.ia_bispectrum(K1, K2, K3, Z, z_piv, A1, alphaIA, A2, alphaIA_2, bias_ta)
         else:
-            B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b3d
+            if self.modes_used == 'E_and_B':
+                B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE, B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b3d
+            elif self.modes_used == 'E':
+                B_ddE, B_dEd, B_Edd, B_dEE, B_EEd, B_EdE, B_EEE = b3d
+            elif self.modes_used == 'B':
+                B_ddB, B_dBd, B_Bdd, B_dEB, B_dBE, B_EBd, B_BEd, B_BdE, B_EdB, B_EEB, B_EBE, B_BEE = b3d
+            else:
+                raise ValueError(f"{self.modes_used=} is not supported.")
 
-        #print(scomb)
-        #if scomb[0] == 1 and scomb[1] == 1 and scomb[2] == 1:
-        #if scomb == 0.3:
-        #    print("kernel 1", kernel_1)
-        #    print("kernel 1", kernel_2)
-        #    print("kernel 1", kernel_3)
-        #    print("w1", W_1)
-        #    print("w2", W_2)
-        #    print("w3", W_3)
-        #    print("shape", np.shape(B_ddE))
-        #    print("B_ddE", B_ddE[:,11])
-            
+        def _integrate(integrand):
+            if integrand.shape[1] > 1:
+                bk = np.trapz(integrand, chi_los, axis=1)
+            else:
+                bk = integrand
+            return bk
+        
         adjust = 1 / chi_los * (1 + z_los) ** 3
-        integrand_ddE = kernel_1 * kernel_2 * W_3 * B_ddE * adjust
-        integrand_dEd = kernel_1 * W_2 * kernel_3 * B_dEd * adjust
-        integrand_Edd = W_1 * kernel_2 * kernel_3 * B_Edd * adjust
+        if self.modes_used == 'E' or self.modes_used == 'E_and_B':
+            bk_ddE = _integrate(kernel_1 * kernel_2 * W_3 * B_ddE * adjust)
+            bk_dEd = _integrate(kernel_1 * W_2 * kernel_3 * B_dEd * adjust)
+            bk_Edd = _integrate(W_1 * kernel_2 * kernel_3 * B_Edd * adjust)
+            
+            bk_dEE = _integrate(kernel_1 * W_2 * W_3 * B_dEE * adjust)
+            bk_EEd = _integrate(W_1 * W_2 * kernel_3 * B_EEd * adjust)
+            bk_EdE = _integrate(W_1 * kernel_2 * W_3 * B_EdE * adjust)
+            
+            bk_EEE = integrate(W_1 * W_2 * W_3 * B_EEE * adjust)
 
-        integrand_ddB = kernel_1 * kernel_2 * W_3 * B_ddB * adjust
-        integrand_dBd = kernel_1 * W_2 * kernel_3 * B_dBd * adjust
-        integrand_Bdd = W_1 * kernel_2 * kernel_3 * B_Bdd * adjust
-                
-        integrand_dEE = kernel_1 * W_2 * W_3 * B_dEE * adjust
-        integrand_EEd = W_1 * W_2 * kernel_3 * B_EEd * adjust
-        integrand_EdE = W_1 * kernel_2 * W_3 * B_EdE * adjust
-
-        integrand_dEB = kernel_1 * W_2 * W_3 * B_dEB * adjust
-        integrand_dBE = kernel_1 * W_2 * W_3 * B_dBE * adjust
-        integrand_EBd = W_1 * W_2 * kernel_3 * B_EBd * adjust
-        integrand_BEd = W_1 * W_2 * kernel_3 * B_BEd * adjust
-        integrand_EdB = W_1 * kernel_2 * W_3 * B_EdB * adjust
-        integrand_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
-
-        integrand_EEE = W_1 * W_2 * W_3 * B_EEE * adjust
+        elif self.modes_used == 'B' or self.modes_used == 'E_and_B':
+            bk_ddB = _integrate(kernel_1 * kernel_2 * W_3 * B_ddB * adjust)
+            bk_dBd = _integrate(kernel_1 * W_2 * kernel_3 * B_dBd * adjust)
+            bk_Bdd = _integrate(W_1 * kernel_2 * kernel_3 * B_Bdd * adjust)
+            
+            bk_dEB = _integrate(kernel_1 * W_2 * W_3 * B_dEB * adjust)
+            bk_dBE = _integrate(kernel_1 * W_2 * W_3 * B_dBE * adjust)
+            bk_EBd = _integrate(W_1 * W_2 * kernel_3 * B_EBd * adjust)
+            bk_BEd = _integrate(W_1 * W_2 * kernel_3 * B_BEd * adjust)
+            bk_EdB = _integrate(W_1 * kernel_2 * W_3 * B_EdB * adjust)
+            bk_BdE = _integrate(W_1 * kernel_2 * W_3 * B_BdE * adjust)
+    
+            bk_EEB = _integrate(W_1 * W_2 * W_3 * B_EEB * adjust)
+            bk_EBE = _integrate(W_1 * W_2 * W_3 * B_EBE * adjust)
+            bk_BEE = _integrate(W_1 * W_2 * W_3 * B_BEE * adjust)
         
-        integrand_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
-        integrand_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
-        integrand_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
-        
-        # Integrate each component
-        if integrand_ddE.shape[1] > 1:
-            bk_ddE = np.trapz(integrand_ddE, chi_los, axis=1)
-            bk_dEd = np.trapz(integrand_dEd, chi_los, axis=1)
-            bk_Edd = np.trapz(integrand_Edd, chi_los, axis=1)
+        # # Integrate each component
+        # if integrand_ddE.shape[1] > 1:
+        #     bk_ddE = np.trapz(integrand_ddE, chi_los, axis=1)
+        #     bk_dEd = np.trapz(integrand_dEd, chi_los, axis=1)
+        #     bk_Edd = np.trapz(integrand_Edd, chi_los, axis=1)
 
-            bk_ddB = np.trapz(integrand_ddB, chi_los, axis=1)
-            bk_dBd = np.trapz(integrand_dBd, chi_los, axis=1)
-            bk_Bdd = np.trapz(integrand_Bdd, chi_los, axis=1)
+        #     bk_ddB = np.trapz(integrand_ddB, chi_los, axis=1)
+        #     bk_dBd = np.trapz(integrand_dBd, chi_los, axis=1)
+        #     bk_Bdd = np.trapz(integrand_Bdd, chi_los, axis=1)
             
-            bk_dEE = np.trapz(integrand_dEE, chi_los, axis=1)
-            bk_EEd = np.trapz(integrand_EEd, chi_los, axis=1)
-            bk_EdE = np.trapz(integrand_EdE, chi_los, axis=1)
+        #     bk_dEE = np.trapz(integrand_dEE, chi_los, axis=1)
+        #     bk_EEd = np.trapz(integrand_EEd, chi_los, axis=1)
+        #     bk_EdE = np.trapz(integrand_EdE, chi_los, axis=1)
 
-            bk_dEB = np.trapz(integrand_dEB, chi_los, axis=1)
-            bk_dBE = np.trapz(integrand_dBE, chi_los, axis=1)
-            bk_EBd = np.trapz(integrand_EBd, chi_los, axis=1)
-            bk_BEd = np.trapz(integrand_BEd, chi_los, axis=1)
-            bk_BdE = np.trapz(integrand_BdE, chi_los, axis=1)
-            bk_EdB = np.trapz(integrand_EdB, chi_los, axis=1)
+        #     bk_dEB = np.trapz(integrand_dEB, chi_los, axis=1)
+        #     bk_dBE = np.trapz(integrand_dBE, chi_los, axis=1)
+        #     bk_EBd = np.trapz(integrand_EBd, chi_los, axis=1)
+        #     bk_BEd = np.trapz(integrand_BEd, chi_los, axis=1)
+        #     bk_BdE = np.trapz(integrand_BdE, chi_los, axis=1)
+        #     bk_EdB = np.trapz(integrand_EdB, chi_los, axis=1)
             
-            bk_EEE = np.trapz(integrand_EEE, chi_los, axis=1)
+        #     bk_EEE = np.trapz(integrand_EEE, chi_los, axis=1)
 
-            bk_EEB = np.trapz(integrand_EEB, chi_los, axis=1)
-            bk_EBE = np.trapz(integrand_EBE, chi_los, axis=1)
-            bk_BEE = np.trapz(integrand_BEE, chi_los, axis=1)
+        #     bk_EEB = np.trapz(integrand_EEB, chi_los, axis=1)
+        #     bk_EBE = np.trapz(integrand_EBE, chi_los, axis=1)
+        #     bk_BEE = np.trapz(integrand_BEE, chi_los, axis=1)
 
-        else:
-            bk_ddE = kernel_1 * kernel_2 * W_3 * B_ddE
-            bk_dEd = kernel_1 * W_2 * kernel_3 * B_dEd
-            bk_Edd = W_1 * kernel_2 * kernel_3 * B_Edd
+        # else:
+        #     bk_ddE = kernel_1 * kernel_2 * W_3 * B_ddE # Why we do not have adjust here?
+        #     bk_dEd = kernel_1 * W_2 * kernel_3 * B_dEd
+        #     bk_Edd = W_1 * kernel_2 * kernel_3 * B_Edd
 
-            bk_ddB = kernel_1 * kernel_2 * W_3 * B_ddB
-            bk_dBd = kernel_1 * W_2 * kernel_3 * B_dBd
-            bk_Bdd = W_1 * kernel_2 * kernel_3 * B_Bdd
+        #     bk_ddB = kernel_1 * kernel_2 * W_3 * B_ddB
+        #     bk_dBd = kernel_1 * W_2 * kernel_3 * B_dBd
+        #     bk_Bdd = W_1 * kernel_2 * kernel_3 * B_Bdd
             
-            bk_dEE = kernel_1 * W_2 * W_3 * B_dEE
-            bk_EEd = W_1 * W_2 * kernel_3 * B_EEd
-            bk_EdE = W_1 * kernel_2 * W_3 * B_EdE
+        #     bk_dEE = kernel_1 * W_2 * W_3 * B_dEE
+        #     bk_EEd = W_1 * W_2 * kernel_3 * B_EEd
+        #     bk_EdE = W_1 * kernel_2 * W_3 * B_EdE
 
-            bk_dEB = kernel_1 * W_2 * W_3 * B_dEB * adjust
-            bk_dBE = kernel_1 * W_2 * W_3 * B_dBE * adjust
-            bk_EBd = W_1 * W_2 * kernel_3 * B_EBd * adjust
-            bk_BEd = W_1 * W_2 * kernel_3 * B_BEd * adjust
-            bk_EdB = W_1 * kernel_2 * W_3 * B_EdB * adjust
-            bk_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
+        #     bk_dEB = kernel_1 * W_2 * W_3 * B_dEB * adjust
+        #     bk_dBE = kernel_1 * W_2 * W_3 * B_dBE * adjust
+        #     bk_EBd = W_1 * W_2 * kernel_3 * B_EBd * adjust
+        #     bk_BEd = W_1 * W_2 * kernel_3 * B_BEd * adjust
+        #     bk_EdB = W_1 * kernel_2 * W_3 * B_EdB * adjust
+        #     bk_BdE = W_1 * kernel_2 * W_3 * B_BdE * adjust
 
-            bk_EEE = W_1 * W_2 * W_3 * B_EEE
+        #     bk_EEE = W_1 * W_2 * W_3 * B_EEE
 
-            bk_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
-            bk_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
-            bk_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
+        #     bk_EEB = W_1 * W_2 * W_3 * B_EEB * adjust
+        #     bk_EBE = W_1 * W_2 * W_3 * B_EBE * adjust
+        #     bk_BEE = W_1 * W_2 * W_3 * B_BEE * adjust
 
         if select_mode == None:
 

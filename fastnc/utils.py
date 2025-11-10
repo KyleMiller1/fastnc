@@ -126,3 +126,16 @@ def update_config(config_base, config=None, **kwargs):
     config = merge_config_kwargs(config, **kwargs)
     config_base.update((key, value) for key, value in config.items() \
             if key in config_base)
+
+# Dummy MPI
+class DummyComm:
+    def Get_rank(self):
+        return 0
+    def Get_size(self):
+        return 1
+
+class DummyMPI:
+    COMM_WORLD = DummyComm()
+    SUM = None
+    MAX = None
+    MIN = None

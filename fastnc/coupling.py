@@ -19,6 +19,8 @@ try:
     from mpi4py import MPI
 except:
     print("Cannot import mpi4py")
+    from .utils import DummyMPI
+    MPI = DummyMPI()
 
 def get_cache_dir():
     # first we look for the environmental variable
@@ -249,7 +251,7 @@ class ModeCouplingFunctionBase:
             out = out[:,0]
 
         return out
-        
+
 class MCF222LegendreFourier(ModeCouplingFunctionBase):
     r"""
     Mode coupling function for spin-2, spin-2, spin-2 correlation function
@@ -447,3 +449,112 @@ class MCF222FourierFourier(ModeCouplingFunctionBase):
 
     def correct(self):
         pass
+
+class MCF222SineFourier(ModeCouplingFunctionBase):
+    r"""
+    Mode coupling function for spin-2, spin-2, spin-2 correlation function
+    and decomposition using Sine function and Fourier modes
+    for Fourier-space and real-space respectively.
+
+    .. math:
+        G_LM(\\psi) = 4\\pi \\int_0^{\\pi} dx \\sin[Lx]\\sin[M x + 2\\beta(\\psi, x)]
+    """
+    __doc__ += ModeCouplingFunctionBase.__doc__
+
+    # name of the mode coupling function
+    name = 'MCF222SineFourier'
+    
+
+    def _integrand(self, x, psi, L, M):
+        x, psi = np.meshgrid(x, psi, indexing='ij')
+        sin2bb, cos2bb = sincos2angbar(psi, x)
+        out = 4*np.pi*np.sin(L*x) * (np.sin(M*x)*cos2bb + np.cos(M*x)*sin2bb)
+        return out
+        
+    def compute(self):
+        has_changed = False
+        # prepare todo list
+        todo = []
+        for L in range(self.Lmax+1):
+            for M in range(self.Mmax+1):
+                todo.append([L, M])
+        # compute GLM
+        for L, M in todo:
+            print(f'\r(L,M) = {(L,M)}/{len(todo)}', end='') if self.verbose else None
+            # skip if the data already exists
+            # in the cache
+            if (L,M) in self.data:
+                continue
+            args = {'L':L, 'M':M, 'psi':self.psi}
+            o, c = aint(self._integrand, 0, np.pi, 2, tol=self.tol, **args)
+            self.data[(L, M)] = o
+            has_changed = True
+        return has_changed
+
+    def correct(self):
+        """
+        Correct the mode coupling function for numerical bias.
+        
+        G_LM(psi) is exactly zero for L<M and psi<=pi/4. 
+        However, the numerical integration may give a non-zero value.
+        From my experience, the same amount of error is also present in
+        G_ML if G_LM is biased. Hence we subtract the error in G_LM(psi<=pi/4)
+        from G_LM(psi) and G_ML(psi).
+        """
+        for (L,M), data in self.data.items():
+            if L>=M:
+                continue
+            # estimate the bias in G_LM(psi<=np.pi/4)
+            bias = np.mean(data[self.psi<=np.pi/4])
+            # subtract the bias
+            self.data[(L,M)] -= bias
+            if (M,L) in self.data:
+                self.data[(M,L)] -= bias
+
+    def __call__(self, L, M, psi):
+        Lisscalar = np.isscalar(L)
+        if Lisscalar:
+            L = np.array([L])
+        Misscalar = np.isscalar(M)
+        if Misscalar:
+            M = np.array([M])
+
+        if np.any(L>self.Lmax):
+            raise ValueError('L={} is larger than Lmax={}'.format(L, self.Lmax))
+        if np.any(L<0):
+            raise ValueError('L={} is smaller than 0'.format(L))
+        if np.any(M>self.Mmax):
+            raise ValueError('M={} is larger than Mmax={}'.format(M, self.Mmax))
+        if np.any(M<-self.Mmax):
+            raise ValueError('M={} is smaller than -Mmax={}'.format(M, self.Mmax))
+
+        # collect todo
+        todo = []
+        for _L in L:
+            for _M in M:
+                todo.append([_L, _M])
+
+        # Avoid the same computation
+        shape = psi.shape
+        psi_unique, inv = np.unique(psi.ravel(), return_inverse=True)
+
+        out = []
+        for _L, _M in todo:
+            # Use the symmetry for M<0
+            # G_{LM}(psi) = -G_{L(-M)}(np.pi/2-psi)
+            if _M>0:
+                o = np.interp(psi_unique, self.psi, self.data[(_L, _M)])
+            else:
+                o = -np.interp(np.pi/2-psi_unique, self.psi, self.data[(_L, -_M)])
+            o = o[inv].reshape(shape)
+            out.append(o)
+        out = np.array(out).reshape(L.shape+M.shape+psi.shape)
+
+        if Lisscalar and Misscalar:
+            out = out[0,0]
+        elif Lisscalar:
+            out = out[0]
+        elif Misscalar:
+            out = out[:,0]
+
+        return out
