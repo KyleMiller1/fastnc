@@ -18,20 +18,27 @@ xpsimu        : Same as x1x2phi but ratio of x2/x1 is parametrized by tan(psi)
 
 import numpy as np
 
-##################################################################
-def is_cyclic_permutation(x):
-    N = len(x)
-    
-    for i in range(N):
-        cyclic_permutation = np.roll(np.arange(N), i)
-        if np.array_equal(x, cyclic_permutation):
-            return True
-    
-    return False
+def orientation_sign(x1, x2, x3):
+    x = np.stack([x1, x2, x3], axis=-1)
+    order = np.argsort(x, axis=-1)
+
+    # (0,1,2), (1,2,0), (2,0,1) -> counterclockwise (+1)
+    # (0,2,1), (2,1,0), (1,0,2) -> clockwise (-1)
+    clockwise_set = np.array([[0,2,1],[2,1,0],[1,0,2]])
+
+    # check if clockwise or not for each
+    is_clockwise = np.any(np.all(order[..., None, :] == clockwise_set, axis=-1), axis=-1)
+
+    sign = np.where(is_clockwise, -1, +1)
+    return sign
 
 # ruv <-> x1x2x3
-def ruv_to_x1x2x3(r, u, v):
-    x1 = r*(1+u*np.abs(v))
+def ruv_to_x1x2x3(r, u, v, signed=False):
+    # x1 = r*(1+u*np.abs(v))
+    if signed:
+        x1 = r*(1+u*v)
+    else:
+        x1 = r*(1+u*np.abs(v))
     x2 = r
     x3 = r*u
     return x1, x2, x3
@@ -52,11 +59,7 @@ def x1x2x3_to_ruv(x1, x2, x3, signed=True, all_physical=True):
         v[v>1] = 1
 
     if signed:
-        # check the (d1 > d2 > d3) triangle is clockwise or not
-        idx = np.argsort([x1, x2, x3], axis=0).T
-        clk = [is_cyclic_permutation(_idx) for _idx in idx]
-        sign = np.ones_like(clk, dtype=int)
-        sign[np.logical_not(clk)] = -1
+        sign = orientation_sign(x1, x2, x3)
         v *= sign
 
     return r, u, v
