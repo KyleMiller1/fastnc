@@ -846,6 +846,11 @@ class BispectrumBase:
             y = edge_correction(np.log(psi), ip.grid[1].min(), ip.grid[1].max())
             out[i] = ip((x, y))
 
+            if self.config_parity['parity'] == 'odd':
+                # change sign for parity odd bispectrum
+                out[i][sel] = -out[i][sel]
+                
+
         if isscalar:
             out = out[0]
             
