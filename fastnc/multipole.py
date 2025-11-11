@@ -282,9 +282,13 @@ class MultipoleSine(MultipoleBase):
             # diff
             w0 = np.diff(w0, axis=1)
             w1 = np.diff(w1, axis=1)
+            # normalization
+            w0*= 2.0/np.pi
+            w1*= 2.0/np.pi
             basis = (w0, w1)
         elif self.method == 'rieamnn':
-            basis = np.sin(L[:,None]*self.x[None,:])
+            raise ValueError(f"method {self.method} is not implementaed yet.")
+            # basis = np.sin(L[:,None]*self.x[None,:])
         else:
             raise ValueError(f"method {self.method} is not supported")
         return basis
@@ -304,21 +308,9 @@ class MultipoleCosine(MultipoleBase):
 
     def _get_basis_function(self, L):
         if self.method == 'gauss-legendre':
-            w0 = np.zeros(L.shape+self.x.shape)
-            w1 = np.zeros(L.shape+self.x.shape)
-            # L == 0
-            w0[L==0,:] = self.x[None,:]
-            w1[L==0,:] = self.x[None,:]**2/2
-            # L != 0
-            _L, _x = L[L!=0,None], self.x[None,:]
-            w0[L!=0,:] = np.sin(_L*_x)/_L
-            w1[L!=0,:] = _x*np.sin(_L*_x)/_L - np.cos(_L*_x)/_L**2
-            # diff
-            w0 = np.diff(w0, axis=1)
-            w1 = np.diff(w1, axis=1)
-            basis = (w0, w1)
+            raise ValueError(f"method {self.method} is not implementaed yet.")
         elif self.method == 'rieamnn':
-            basis = np.cos(L[:,None]*self.x[None,:])
+            raise ValueError(f"method {self.method} is not implementaed yet.")
         else:
             raise ValueError(f"method {self.method} is not supported")
         return basis

@@ -406,6 +406,12 @@ class FastNaturalComponents:
         self.Gamma2 = np.dot(self.Gamma2M, expMphi)/(2*np.pi)
         self.Gamma3 = np.dot(self.Gamma3M, expMphi)/(2*np.pi)
         timer('Gamma')
+        # parity (tentative implementation)
+        if self.bispectrum.is_parity_odd():
+            self.Gamma0 *= -1j
+            self.Gamma1 *= -1j
+            self.Gamma2 *= -1j
+            self.Gamma3 *= -1j
         # change shear projection
         self._change_shear_projection('x', self.projection)
         timer('projection')

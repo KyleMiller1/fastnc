@@ -369,6 +369,9 @@ class BispectrumBase:
         """
         self.window_function = window_function
 
+    def is_parity_odd(self):
+        return self.config_parity['parity']
+
     # Redshift-bin related
     def _compute_lensing_kernel_per_sample(self, name, nzlbin=101):
         """
@@ -752,7 +755,7 @@ class BispectrumBase:
         if self.ylog_interp:
             bk = np.exp(bk)
 
-        if self.config_parity['parity'] == 'odd':
+        if self.is_parity_odd():
             ells  = trigutils.ruv_to_x1x2x3(r,u,v)
             vs    = trigutils.x1x2x3_to_ruv(*ells, signed=True)[2]
             sign2 = np.sign(vs)
@@ -846,7 +849,7 @@ class BispectrumBase:
             y = edge_correction(np.log(psi), ip.grid[1].min(), ip.grid[1].max())
             out[i] = ip((x, y))
 
-            if self.config_parity['parity'] == 'odd':
+            if self.is_parity_odd():
                 # change sign for parity odd bispectrum
                 out[i][sel] = -out[i][sel]
 
