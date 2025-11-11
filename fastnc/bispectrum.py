@@ -849,7 +849,6 @@ class BispectrumBase:
             if self.config_parity['parity'] == 'odd':
                 # change sign for parity odd bispectrum
                 out[i][sel] = -out[i][sel]
-                
 
         if isscalar:
             out = out[0]

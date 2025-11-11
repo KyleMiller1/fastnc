@@ -4,7 +4,7 @@ from scipy.integrate import simpson
 from scipy.optimize import bisect
 from scipy.special import gamma, gammaincc
 
-from .trigutils import is_cyclic_permutation
+# from .trigutils import is_cyclic_permutation
 
 # Reusing window functions from halofit.py
 def window_tophat(x):
