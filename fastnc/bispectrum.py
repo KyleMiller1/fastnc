@@ -370,7 +370,7 @@ class BispectrumBase:
         self.window_function = window_function
 
     def is_parity_odd(self):
-        return self.config_parity['parity']
+        return self.config_parity['parity'] == 'odd'
 
     # Redshift-bin related
     def _compute_lensing_kernel_per_sample(self, name, nzlbin=101):
